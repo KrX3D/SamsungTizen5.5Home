@@ -1,0 +1,7 @@
+*.wgt
+app/.manifest.tmp
+app/.buildResult/
+app/.sign/
+app/author-signature.xml
+app/signature1.xml
+release/

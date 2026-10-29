@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://krx3d.home/applauncher" version="1.0.0" viewmodes="maximized">
+    <tizen:application id="krx3dLnch1.Home" package="krx3dLnch1" required_version="5.0"/>
+    <content src="index.html"/>
+    <feature name="http://tizen.org/feature/screen.size.all"/>
+    <icon src="icon.png"/>
+    <name>HomeDock</name>
+    <access origin="https://open-meteo.com" subdomains="true"/>
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
+    <tizen:privilege name="http://tizen.org/privilege/application.info"/>
+    <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+    <tizen:profile name="tv"/>
+    <tizen:setting background-support="disable" context-menu="disable" encryption="disable" hwkey-event="enable" screen-orientation="landscape"/>
+</widget>

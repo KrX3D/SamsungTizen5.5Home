@@ -1,0 +1,138 @@
+# -----------------------------------------------------------------------------
+# Build, sign and release HomeDock (app/) as a .wgt
+#
+# Same recipe as TizenTube's build-standalone-release.yaml: Samsung's official
+# Tizen Studio CLI, an author certificate from secrets, and Samsung's public
+# sample distributor certificate bundled with Tizen Studio.
+#
+# Every push to main that touches app/ produces release v1.0.<run number>.
+# The release notes start with TBI_METADATA so TizenBrew Installer can
+# install and update it from this repo.
+#
+# REQUIRED SECRETS
+#   TIZEN_AUTHOR_KEY     base64 of the author .p12 (no line wrapping)
+#   TIZEN_AUTHOR_KEY_PW  its password
+# Keep using the SAME author certificate forever: the TV refuses an update
+# signed by a different author than the installed version.
+# -----------------------------------------------------------------------------
+
+name: Build and release HomeDock
+
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', '.github/workflows/build-release.yml', '.github/assets/**']
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  TIZEN_STUDIO_VER: 5.6
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set version
+        run: |
+          set -euo pipefail
+          VER="1.0.${GITHUB_RUN_NUMBER}"
+          sed -i "0,/<widget /s/version=\"[^\"]*\"/version=\"${VER}\"/" app/config.xml
+          APP_ID=$(sed -n 's/.*<tizen:application[^>]*id="\([^"]*\)".*/\1/p' app/config.xml | head -n1)
+          echo "VERSION=${VER}" >> "$GITHUB_ENV"
+          echo "APP_ID=${APP_ID}" >> "$GITHUB_ENV"
+          echo "HomeDock ${VER} (${APP_ID})"
+
+      - name: Restore the Tizen Studio installer from cache
+        id: tizen_cache
+        uses: actions/cache@v4
+        with:
+          path: tizen-installer
+          key: tizen-installer-${{ env.TIZEN_STUDIO_VER }}-ubuntu-64
+
+      - name: Download Tizen Studio CLI
+        if: steps.tizen_cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          URL="https://download.tizen.org/sdk/Installer/tizen-studio_${TIZEN_STUDIO_VER}/web-cli_Tizen_Studio_${TIZEN_STUDIO_VER}_ubuntu-64.bin"
+          for i in 1 2 3 4 5; do
+            CODE=$(curl -sSL -o tizen-installer -w '%{http_code}' "$URL" || echo 000)
+            if [ "$CODE" = "200" ] && [ -s tizen-installer ]; then exit 0; fi
+            echo "attempt ${i}: HTTP ${CODE}"
+            if [ "$CODE" = "404" ]; then break; fi
+            sleep 15
+          done
+          echo "::error::Could not download the Tizen Studio CLI from ${URL} (HTTP ${CODE}). This is on Tizen's side; re-run when download.tizen.org serves it again."
+          exit 1
+
+      - name: Install Tizen Studio CLI
+        run: |
+          set -euo pipefail
+          chmod +x ./tizen-installer
+          ./tizen-installer --accept-license "${GITHUB_WORKSPACE}/tizen-studio"
+          echo "${GITHUB_WORKSPACE}/tizen-studio/tools/ide/bin" >> "$GITHUB_PATH"
+
+      - name: Configure certificate profile
+        env:
+          AUTHOR_P12_B64: ${{ secrets.TIZEN_AUTHOR_KEY }}
+          AUTHOR_P12_PASSWORD: ${{ secrets.TIZEN_AUTHOR_KEY_PW }}
+        run: |
+          set -euo pipefail
+          if [ -z "${AUTHOR_P12_B64:-}" ] || [ -z "${AUTHOR_P12_PASSWORD:-}" ]; then
+            echo "::error::Secrets TIZEN_AUTHOR_KEY and TIZEN_AUTHOR_KEY_PW are not set (see the header of this workflow)."
+            exit 1
+          fi
+          KS="${GITHUB_WORKSPACE}/tizen-data/keystore/author"
+          mkdir -p "$KS" "${GITHUB_WORKSPACE}/tizen-data/profile"
+          echo "$AUTHOR_P12_B64" | base64 -d > "$KS/author.p12"
+          # Tizen Studio's Java signer cannot read AES-256 PKCS#12 and reports it
+          # as a wrong password. Re-wrap with the legacy cipher, same key and cert.
+          openssl pkcs12 -legacy -in "$KS/author.p12" -out /tmp/author.pem -nodes -passin env:AUTHOR_P12_PASSWORD 2>/dev/null \
+            || openssl pkcs12 -in "$KS/author.p12" -out /tmp/author.pem -nodes -passin env:AUTHOR_P12_PASSWORD
+          openssl pkcs12 -export -legacy -in /tmp/author.pem -passout env:AUTHOR_P12_PASSWORD -out "$KS/author.p12" \
+            -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES -macalg sha1
+          rm -f /tmp/author.pem
+          cp .github/assets/profiles.xml "${GITHUB_WORKSPACE}/tizen-data/profile/profiles.xml"
+          python3 -c "from pathlib import Path; import os; from xml.sax.saxutils import escape; p=Path(os.environ['GITHUB_WORKSPACE'])/'tizen-data/profile/profiles.xml'; t=p.read_text(); t=t.replace('\$GITHUB_WORKSPACE', os.environ['GITHUB_WORKSPACE']).replace('\$KEY_PW', escape(os.environ['AUTHOR_P12_PASSWORD'], {'\"':'&quot;'})); p.write_text(t)"
+          tizen cli-config "profiles.path=${GITHUB_WORKSPACE}/tizen-data/profile/profiles.xml"
+
+      - name: Package WGT
+        run: |
+          set -euo pipefail
+          tizen package -t wgt -s HomeDock -- ./app
+          mkdir -p release
+          cp app/*.wgt release/HomeDock.wgt
+          unzip -l release/HomeDock.wgt | grep -E 'author-signature.xml|signature1.xml'
+
+      - name: Show Tizen CLI log on failure
+        if: failure()
+        run: cat "${HOME}/tizen-studio-data/cli/logs/cli.log" 2>/dev/null || echo "no cli.log"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: HomeDock-${{ env.VERSION }}
+          path: release/HomeDock.wgt
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}"
+          {
+            echo "HomeDock ${VERSION} built from commit \`${GITHUB_SHA}\`."
+            echo "TBI_METADATA: {\"appId\":\"${APP_ID}\",\"appName\":\"HomeDock\"}"
+            echo
+            git log -1 --pretty='- %s'
+          } > "$RUNNER_TEMP/notes.md"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/HomeDock.wgt --clobber
+          else
+            gh release create "$TAG" release/HomeDock.wgt --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --target "$GITHUB_SHA"
+          fi
