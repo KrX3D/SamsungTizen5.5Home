@@ -6,6 +6,8 @@
         en: {
             addApp: "Add app",
             addShortcut: "Add shortcut",
+            tabApps: "Apps",
+            tabSystem: "System",
             move: "Move",
             moveHint: "◀ ▶ to move, OK when done",
             remove: "Remove",
@@ -46,6 +48,8 @@
         de: {
             addApp: "App hinzufügen",
             addShortcut: "Verknüpfung hinzufügen",
+            tabApps: "Apps",
+            tabSystem: "System",
             move: "Verschieben",
             moveHint: "◀ ▶ zum Verschieben, OK zum Beenden",
             remove: "Entfernen",

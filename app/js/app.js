@@ -23,8 +23,9 @@
         "org.tizen.netflix-app": "Netflix",
         "org.tizen.browser": "Internet"
     };
-    // Bundled artwork for apps whose own icon the TV does not hand out.
-    var ICON_OVERRIDE = {
+    // Bundled artwork, used only when the icon the TV reports does not load
+    // (the built-in YouTube's did not on a UE75RU7099).
+    var ICON_FALLBACK = {
         "com.samsung.tv.cobalt-yt": "img/youtube.svg",
         "com.samsung.tv.cobalt-ytkids": "img/youtube.svg"
     };
@@ -66,7 +67,8 @@
         return p.charAt(0) === "/" ? "file://" + p : p;
     }
     function describe(a) {
-        return { id: a.id, name: SYSTEM_APPS[a.id] || a.name, icon: ICON_OVERRIDE[a.id] || iconUrl(a.iconPath) };
+        return { id: a.id, name: SYSTEM_APPS[a.id] || a.name, iconPath: a.iconPath || "",
+                 icon: iconUrl(a.iconPath), fallback: ICON_FALLBACK[a.id] || "" };
     }
     function appInfo(id) {
         try { return describe(tizen.application.getAppInfo(id)); }
@@ -86,24 +88,25 @@
         fb.className = "fb";
         fb.textContent = app.name;
         el.appendChild(fb);
-        if (app.icon) {
-            var img = new Image();
-            img.onload = function () {
-                var ratio = img.naturalWidth / img.naturalHeight;
-                if (Math.abs(ratio - 1) < 0.08) {
-                    img.className = "fill";
-                } else {
-                    var blur = document.createElement("div");
-                    blur.className = "blur";
-                    blur.style.backgroundImage = "url('" + app.icon + "')";
-                    el.appendChild(blur);
-                    img.className = "fit";
-                }
-                fb.style.display = "none";
-                el.appendChild(img);
-            };
-            img.src = app.icon;
-        }
+        var sources = [app.icon, app.fallback].filter(function (s) { return s; });
+        var img = new Image();
+        img.onload = function () {
+            var src = img.src;
+            var ratio = img.naturalWidth / img.naturalHeight;
+            if (Math.abs(ratio - 1) < 0.08) {
+                img.className = "fill";
+            } else {
+                var blur = document.createElement("div");
+                blur.className = "blur";
+                blur.style.backgroundImage = "url('" + src + "')";
+                el.appendChild(blur);
+                img.className = "fit";
+            }
+            fb.style.display = "none";
+            el.appendChild(img);
+        };
+        img.onerror = function () { if (sources.length) img.src = sources.shift(); };
+        if (sources.length) img.src = sources.shift();
         return el;
     }
 
@@ -173,6 +176,8 @@
         if (focus >= dock.length) return;
         mode = "menu";
         $("menuTitle").textContent = dock[focus].name;
+        // What the TV reports for this app, to see why an icon does not show.
+        $("menuInfo").textContent = dock[focus].id + "\n" + (dock[focus].iconPath || "-");
         var list = $("menuList");
         list.innerHTML = "";
         for (var i = 0; i < MENU.length; i++) {
@@ -220,34 +225,64 @@
     }
 
     // ---------- app picker ----------
-    var picks = [], pickFocus = 0;
+    // Two tabs: 0 = Apps (store, sideloaded, a few Samsung apps), 1 = System
+    // (everything else the TV marks visible). Up from the first row reaches them.
+    var pickAll = [], picks = [], pickFocus = 0, pickTab = 0, onTabs = false;
 
     function openPicker() {
         mode = "picker";
         $("picker").className = "overlay on";
-        var grid = $("pickGrid");
-        grid.innerHTML = "";
-        picks = [];
+        pickAll = [];
+        pickTab = 0;
+        onTabs = false;
         var done = function (list) {
             for (var i = 0; i < list.length; i++) {
-                if (isPickable(list[i])) picks.push(describe(list[i]));
+                if (!list[i].show || list[i].id === SELF_ID) continue;
+                var d = describe(list[i]);
+                d.user = isPickable(list[i]);
+                pickAll.push(d);
             }
-            picks.sort(function (x, y) { return x.name.toLowerCase() < y.name.toLowerCase() ? -1 : 1; });
-            for (var j = 0; j < picks.length; j++) {
-                var wrap = document.createElement("div");
-                wrap.className = "pick" + (inDock(picks[j].id) ? " added" : "");
-                wrap.appendChild(tileEl(picks[j]));
-                var nm = document.createElement("div");
-                nm.className = "nm";
-                nm.textContent = picks[j].name;
-                wrap.appendChild(nm);
-                grid.appendChild(wrap);
-            }
-            pickFocus = 0;
-            setPickFocus(0);
+            pickAll.sort(function (x, y) { return x.name.toLowerCase() < y.name.toLowerCase() ? -1 : 1; });
+            renderPicks();
         };
+        renderPicks();
         try { tizen.application.getAppsInfo(done, function () { done([]); }); }
         catch (e) { done([]); }
+    }
+
+    function renderPicks() {
+        var tabs = $("pickTabs").children;
+        for (var k = 0; k < tabs.length; k++) {
+            tabs[k].className = "tab" + (k === pickTab ? " on" : "") + (onTabs && k === pickTab ? " focus" : "");
+        }
+        var grid = $("pickGrid");
+        grid.innerHTML = "";
+        picks = pickAll.filter(function (p) { return p.user === (pickTab === 0); });
+        for (var j = 0; j < picks.length; j++) {
+            var wrap = document.createElement("div");
+            wrap.className = "pick" + (inDock(picks[j].id) ? " added" : "");
+            wrap.appendChild(tileEl(picks[j]));
+            var nm = document.createElement("div");
+            nm.className = "nm";
+            nm.textContent = picks[j].name;
+            wrap.appendChild(nm);
+            grid.appendChild(wrap);
+        }
+        pickFocus = 0;
+        grid.style.transform = "";
+        if (!onTabs) setPickFocus(0);
+    }
+
+    function setTabs(on, tab) {
+        onTabs = on;
+        if (tab !== undefined && tab !== pickTab) { pickTab = tab; renderPicks(); return; }
+        var tabs = $("pickTabs").children;
+        for (var k = 0; k < tabs.length; k++) {
+            tabs[k].className = "tab" + (k === pickTab ? " on" : "") + (onTabs && k === pickTab ? " focus" : "");
+        }
+        var cur = $("pickGrid").children[pickFocus];
+        if (on && cur) cur.querySelector(".tile").className = "tile";
+        else if (!on) setPickFocus(pickFocus);
     }
 
     function inDock(id) {
@@ -269,6 +304,7 @@
     }
 
     function pickChosen() {
+        if (onTabs) { if (picks.length) setTabs(false); return; }
         var p = picks[pickFocus];
         if (!p) return;
         if (!inDock(p.id)) {
@@ -501,10 +537,16 @@
             else if (k === KEY.DOWN) setMenuFocus(menuFocus + 1);
             else if (k === KEY.BACK) closeOverlay();
             else handled = false;
+        } else if (mode === "picker" && onTabs) {
+            if (k === KEY.LEFT) setTabs(true, 0);
+            else if (k === KEY.RIGHT) setTabs(true, 1);
+            else if (k === KEY.DOWN && picks.length) setTabs(false);
+            else if (k === KEY.BACK) closeOverlay();
+            else handled = false;
         } else if (mode === "picker") {
             if (k === KEY.LEFT) setPickFocus(pickFocus - 1);
             else if (k === KEY.RIGHT) setPickFocus(pickFocus + 1);
-            else if (k === KEY.UP) setPickFocus(pickFocus - PICK_COLS);
+            else if (k === KEY.UP) { if (pickFocus < PICK_COLS) setTabs(true); else setPickFocus(pickFocus - PICK_COLS); }
             else if (k === KEY.DOWN) setPickFocus(pickFocus + PICK_COLS);
             else if (k === KEY.BACK) closeOverlay();
             else handled = false;
