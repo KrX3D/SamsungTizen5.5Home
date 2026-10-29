@@ -13,9 +13,10 @@ Tested target: Tizen 5.0 (2019 models). The code is ES5 and avoids CSS newer tha
 
 | Key | Action |
 |---|---|
-| Left / Right | Move through the dock |
+| Down / Up | Move between the dock and the sources row |
+| Left / Right | Move through the dock or the sources row |
 | OK | Open the app, or open the app picker on **+** |
-| Hold OK | Menu for the focused app: **Move** (then Left / Right, OK when done) or **Remove** |
+| Hold OK | On an app: **Move** / **Remove**. On a source: **Rename** / **Hide** |
 | Red | Settings: show/hide clock, weather and name; wallpaper mode; weather location; TV name |
 | Back | Leave HomeDock |
 
@@ -25,6 +26,9 @@ reopens at the last pick; Back steps up a level.
 
 The wallpaper can rotate through the bundled photos, show one chosen photo, or be a plain
 light or dark background that never changes.
+
+When the TV reports HDMI inputs, a sources row appears under the dock; OK switches to an
+input. Hidden sources can be brought back from Settings.
 
 To have it open after the TV turns on, open HomeDock last and enable
 **Settings > General > Smart Features > Autorun Last App**.
