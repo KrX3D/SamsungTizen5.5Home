@@ -6,6 +6,9 @@
 # sample distributor certificate bundled with Tizen Studio.
 #
 # Every push to main that touches app/ produces release v1.0.<run number>.
+# Nothing else does: README, scripts and even this workflow can change
+# without publishing an identical app. Run it by hand (workflow_dispatch)
+# to test a workflow change.
 # The release notes start with TBI_METADATA so TizenBrew Installer can
 # install and update it from this repo.
 #
@@ -21,7 +24,7 @@ name: Build and release HomeDock
 on:
   push:
     branches: [main]
-    paths: ['app/**', '.github/workflows/build-release.yml', '.github/assets/**']
+    paths: ['app/**']
   workflow_dispatch:
 
 concurrency:
