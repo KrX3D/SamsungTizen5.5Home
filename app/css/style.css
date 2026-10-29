@@ -341,3 +341,13 @@ body.light .tile.plus .in { background: rgba(0,0,0,0.10); }
 /* White weather icons need an outline to be visible on a light wallpaper. */
 body.light #now svg, body.light #wxextra svg, body.light #hourly svg, body.light #forecast svg { -webkit-filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.55)); filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.55)); }
 body.light #hourly { background: rgba(255,255,255,0.62); }
+
+/* ---- Clock options ---- */
+#time.analog { font-size: 0; line-height: 0; }
+#time.analog svg { display: inline-block; }
+#time .sec { font-size: 42px; opacity: 0.55; margin-left: 2px; }
+#greeting {
+    position: absolute; top: 118px; left: 76px;
+    font-size: 34px; font-weight: 300; opacity: 0.9;
+    text-shadow: 0 2px 14px rgba(0,0,0,0.5);
+}
