@@ -81,9 +81,29 @@
         return !!m && !HIDDEN_PKG[m[1]] && !HIDDEN_SUFFIX.test(m[2]);
     }
 
+    // Top-left pixel as a CSS colour; "" if it is transparent (keep the dark
+    // tile), null if the browser refuses to read the image's pixels.
+    function edgeColor(img) {
+        try {
+            var c = document.createElement("canvas");
+            c.width = c.height = 16;
+            var ctx = c.getContext("2d");
+            ctx.drawImage(img, 0, 0, 16, 16);
+            var d = ctx.getImageData(0, 0, 1, 1).data;
+            return d[3] < 200 ? "" : "rgb(" + d[0] + "," + d[1] + "," + d[2] + ")";
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // .tile zooms and carries the focus ring; .in clips the artwork. Kept
+    // apart because the clipping mask would also hide the ring.
     function tileEl(app) {
+        var outer = document.createElement("div");
+        outer.className = "tile";
         var el = document.createElement("div");
-        el.className = "tile";
+        el.className = "in";
+        outer.appendChild(el);
         var fb = document.createElement("div");
         fb.className = "fb";
         fb.textContent = app.name;
@@ -96,10 +116,18 @@
             if (Math.abs(ratio - 1) < 0.08) {
                 img.className = "fill";
             } else {
-                var blur = document.createElement("div");
-                blur.className = "blur";
-                blur.style.backgroundImage = "url('" + src + "')";
-                el.appendChild(blur);
+                // Fill the tile with the artwork's own corner colour. Reading
+                // pixels can be refused for another app's file; only then use
+                // a blurred copy, which is slow to redraw and flickered.
+                var edge = edgeColor(img);
+                if (edge === null) {
+                    var blur = document.createElement("div");
+                    blur.className = "blur";
+                    blur.style.backgroundImage = "url('" + src + "')";
+                    el.appendChild(blur);
+                } else if (edge) {
+                    el.style.background = edge;
+                }
                 img.className = "fit";
             }
             fb.style.display = "none";
@@ -107,7 +135,7 @@
         };
         img.onerror = function () { if (sources.length) img.src = sources.shift(); };
         if (sources.length) img.src = sources.shift();
-        return el;
+        return outer;
     }
 
     // ---------- dock ----------
@@ -129,7 +157,7 @@
         for (var i = 0; i < dock.length; i++) strip.appendChild(tileEl(dock[i]));
         var plus = document.createElement("div");
         plus.className = "tile plus";
-        plus.innerHTML = '<div class="fb">+</div>';
+        plus.innerHTML = '<div class="in"><div class="fb">+</div></div>';
         strip.appendChild(plus);
         setFocus(Math.min(focus, dock.length));
     }
@@ -215,9 +243,14 @@
         var a = dock[focus];
         dock[focus] = dock[j];
         dock[j] = a;
+        // Swap the two tiles in place. Rebuilding the dock reloaded every
+        // icon and made the whole row flicker on each step.
+        var strip = $("strip"), from = strip.children[focus], to = strip.children[j];
+        if (d > 0) strip.insertBefore(to, from);
+        else strip.insertBefore(from, to);
         focus = j;
         saveDock();
-        renderDock();
+        setFocus(j);
     }
     function endMove() {
         mode = "dock";
@@ -320,8 +353,9 @@
     // ---------- generic list picker ----------
     var choice = null, choiceFocus = 0;
 
-    // items: [{label, value}]; onBack runs on the Back key.
-    function openChoice(title, items, cols, onPick, onBack) {
+    // items: [{label, key}]; onBack runs on the Back key; the item whose key
+    // equals `selected` starts focused.
+    function openChoice(title, items, cols, onPick, onBack, selected) {
         $("settings").className = "overlay";
         mode = "choice";
         choice = { items: items, cols: cols, onPick: onPick, onBack: onBack };
@@ -337,8 +371,12 @@
             grid.appendChild(el);
         }
         $("choice").className = "overlay on";
+        var start = 0;
+        for (var j = 0; j < items.length; j++) {
+            if (selected !== undefined && selected !== null && items[j].key === selected) { start = j; break; }
+        }
         choiceFocus = 0;
-        setChoiceFocus(0);
+        setChoiceFocus(start);
     }
     function setChoiceFocus(i) {
         var els = $("choiceGrid").children;
@@ -353,6 +391,12 @@
     }
 
     // ---------- weather location ----------
+    // Browsed as country > state > district > (first letter) > place, from
+    // places/index.json plus one places/<CC>/<state>.json per state, loaded on
+    // demand. The last pick's path is saved so the picker reopens there.
+    var SEP = "  ›  ";
+    var placeIndex = null, stateCache = {};
+
     function useLocation(city, place) {
         settings.city = city;
         settings.loc = { name: place.name, lat: place.lat, lon: place.lon };
@@ -362,39 +406,98 @@
     }
     function sortLabels(a, b) { return a.label.localeCompare(b.label, t.locale); }
 
-    function chooseCountry() {
-        var P = window.PLACES || {};
-        var items = ["DE", "AT", "CH"].filter(function (c) { return P[c]; })
-            .map(function (c) { return { label: t.t("country_" + c), value: c }; });
-        openChoice(t.t("chooseCountry"), items, 3, function (it) { chooseState(it.value); }, openSettings);
+    function getJSON(url, ok) {
+        var x = new XMLHttpRequest();
+        x.open("GET", url, true);
+        x.onload = function () {
+            // Files inside the app package answer with status 0.
+            if (x.status !== 200 && x.status !== 0) { toast(t.t("loadFailed")); return; }
+            try { ok(JSON.parse(x.responseText)); } catch (e) { toast(t.t("loadFailed")); }
+        };
+        x.onerror = function () { toast(t.t("loadFailed")); };
+        x.send();
     }
-    function chooseState(cc) {
-        var items = Object.keys(window.PLACES[cc]).map(function (s) { return { label: s, value: s }; }).sort(sortLabels);
-        openChoice(t.t("country_" + cc) + "  ›  " + t.t("chooseState"), items, 4,
-            function (it) { chooseLetter(cc, it.value); }, chooseCountry);
+    function country(cc) {
+        for (var i = 0; i < placeIndex.length; i++) if (placeIndex[i].cc === cc) return placeIndex[i];
+        return null;
     }
-    function chooseLetter(cc, st) {
-        var list = window.PLACES[cc][st];
-        if (list.length <= 48) { chooseTown(cc, st, null); return; }
+    function stateName(cc, st) {
+        var s = country(cc).states;
+        for (var i = 0; i < s.length; i++) if (s[i].code === st) return s[i].name;
+        return st;
+    }
+    function withState(cc, st, cb) {
+        var k = cc + "/" + st;
+        if (stateCache[k]) { cb(stateCache[k]); return; }
+        getJSON("places/" + k + ".json", function (j) { stateCache[k] = j.g; cb(j.g); });
+    }
+    function groupPlaces(cc, st, g) {
+        var groups = stateCache[cc + "/" + st];
+        for (var i = 0; i < groups.length; i++) if (groups[i][0] === g) return groups[i][1];
+        return [];
+    }
+    function crumb(cc, st, g) { return stateName(cc, st) + (g ? SEP + g : ""); }
+
+    function openLocation() {
+        var go = function () {
+            var p = settings.locPath;
+            if (p && country(p.cc)) chooseTown(p.cc, p.st, p.g, p.letter, p.label);
+            else chooseCountry();
+        };
+        if (placeIndex) go();
+        else getJSON("places/index.json", function (j) { placeIndex = j; go(); });
+    }
+    function chooseCountry(sel) {
+        var items = placeIndex.map(function (c) { return { label: c[t.lang] || c.en, key: c.cc }; }).sort(sortLabels);
+        openChoice(t.t("chooseCountry"), items, 4, function (it) { chooseState(it.key); }, openSettings, sel);
+    }
+    function chooseState(cc, sel) {
+        var c = country(cc);
+        var items = c.states.map(function (s) { return { label: s.name, key: s.code }; });
+        openChoice((c[t.lang] || c.en) + SEP + t.t("chooseState"), items, 4,
+            function (it) { chooseDistrict(cc, it.key); },
+            function () { chooseCountry(cc); }, sel);
+    }
+    function chooseDistrict(cc, st, sel) {
+        withState(cc, st, function (groups) {
+            if (groups.length === 1) { chooseLetter(cc, st, groups[0][0]); return; }
+            var items = groups.map(function (g) { return { label: g[0] || "—", key: g[0] }; });
+            openChoice(stateName(cc, st) + SEP + t.t("chooseDistrict"), items, 3,
+                function (it) { chooseLetter(cc, st, it.key); },
+                function () { chooseState(cc, st); }, sel);
+        });
+    }
+    function backToDistrict(cc, st, g) {
+        if (stateCache[cc + "/" + st].length === 1) chooseState(cc, st);
+        else chooseDistrict(cc, st, g);
+    }
+    function chooseLetter(cc, st, g, sel) {
+        var list = groupPlaces(cc, st, g);
+        if (list.length <= 48) { chooseTown(cc, st, g, null); return; }
         var seen = {}, items = [];
         for (var i = 0; i < list.length; i++) {
             var c = list[i][0].charAt(0).toUpperCase();
-            if (!seen[c]) { seen[c] = true; items.push({ label: c, value: c }); }
+            if (!seen[c]) { seen[c] = true; items.push({ label: c, key: c }); }
         }
         items.sort(sortLabels);
-        openChoice(st + "  ›  " + t.t("chooseLetter"), items, 9,
-            function (it) { chooseTown(cc, st, it.value); }, function () { chooseState(cc); });
+        openChoice(crumb(cc, st, g) + SEP + t.t("chooseLetter"), items, 9,
+            function (it) { chooseTown(cc, st, g, it.key); },
+            function () { backToDistrict(cc, st, g); }, sel);
     }
-    function chooseTown(cc, st, letter) {
-        var items = window.PLACES[cc][st]
-            .filter(function (p) { return !letter || p[0].charAt(0).toUpperCase() === letter; })
-            .map(function (p) { return { label: p[0], value: p }; });
-        openChoice(st + (letter ? "  ›  " + letter : "") + "  ›  " + t.t("chooseTown"), items, 4,
-            function (it) {
-                closeOverlay();
-                useLocation(it.value[0], { name: it.value[0], lat: it.value[1], lon: it.value[2] });
-            },
-            function () { if (letter) chooseLetter(cc, st); else chooseState(cc); });
+    function chooseTown(cc, st, g, letter, sel) {
+        withState(cc, st, function () {
+            var items = groupPlaces(cc, st, g)
+                .filter(function (p) { return !letter || p[0].charAt(0).toUpperCase() === letter; })
+                .map(function (p) { return { label: p[0], key: p[0], place: p }; });
+            openChoice(crumb(cc, st, g) + (letter ? SEP + letter : "") + SEP + t.t("chooseTown"), items, 3,
+                function (it) {
+                    closeOverlay();
+                    var name = it.place[0].split(" · ")[0];     // "Hausen · Waldbrunn" -> "Hausen"
+                    settings.locPath = { cc: cc, st: st, g: g, letter: letter, label: it.place[0] };
+                    useLocation(name, { name: name, lat: it.place[1], lon: it.place[2] });
+                },
+                function () { if (letter) chooseLetter(cc, st, g, letter); else backToDistrict(cc, st, g); }, sel);
+        });
     }
 
     // ---------- settings ----------
@@ -420,7 +523,7 @@
     }
     function settingsChosen() {
         var id = SET_ITEMS[setFocusIdx];
-        if (id === "btnLoc") { chooseCountry(); return; }
+        if (id === "btnLoc") { openLocation(); return; }
         if (id === "setCity" || id === "setName") { $(id).focus(); return; }   // opens the TV keyboard
         if (id === "btnClose") { closeOverlay(); return; }
 
@@ -432,8 +535,9 @@
         var city = $("setCity").value.replace(/^\s+|\s+$/g, "");
         if (!city) return;
         Weather.geocode(city, function (list) {
+            settings.locPath = null;
             if (list.length === 1) { useLocation(city, list[0]); return; }
-            var items = list.map(function (p) { return { label: p.label, value: p }; });
+            var items = list.map(function (p) { return { label: p.label, key: p.label, value: p }; });
             openChoice(t.t("chooseLocation"), items, 1, function (it) {
                 closeOverlay();
                 useLocation(city, it.value);
