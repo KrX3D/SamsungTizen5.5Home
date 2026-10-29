@@ -26,7 +26,7 @@
 
     var dock = [];          // [{id, name, icon}]
     var focus = 0;          // index into dock; dock.length = the "+" tile
-    var mode = "dock";      // dock | picker | confirm | settings
+    var mode = "dock";      // dock | picker | confirm | settings | places
     var settings = {};
 
     // ---------- storage ----------
@@ -241,12 +241,10 @@
         var city = $("setCity").value.replace(/^\s+|\s+$/g, "");
         settings.name = $("setName").value.replace(/^\s+|\s+$/g, "");
         applyName();
-        if (city && city !== settings.city) {
-            Weather.geocode(city, function (loc) {
-                settings.city = city;
-                settings.loc = loc;
-                save(SETTINGS_KEY, settings);
-                Weather.start(settings, noLocation);
+        if (city && (city !== settings.city || !settings.loc)) {
+            Weather.geocode(city, function (list) {
+                if (list.length === 1) useLocation(city, list[0]);
+                else openPlaces(city, list);
             }, function () { toast(t.t("locNotFound", city)); });
         } else if (!city) {
             settings.city = "";
@@ -256,6 +254,44 @@
         save(SETTINGS_KEY, settings);
         closeOverlay();
     }
+    function useLocation(city, place) {
+        settings.city = city;
+        settings.loc = { name: place.name, lat: place.lat, lon: place.lon };
+        save(SETTINGS_KEY, settings);
+        Weather.start(settings, noLocation);
+    }
+
+    // ---------- location matches ----------
+    var places = [], placeCity = "", placeFocus = 0;
+
+    function openPlaces(city, list) {
+        mode = "places";
+        places = list;
+        placeCity = city;
+        var box = $("placeList");
+        box.innerHTML = "";
+        for (var i = 0; i < list.length; i++) {
+            var row = document.createElement("div");
+            row.className = "place";
+            row.textContent = list[i].label;
+            box.appendChild(row);
+        }
+        $("places").className = "overlay on";
+        setPlaceFocus(0);
+    }
+    function setPlaceFocus(i) {
+        var rows = $("placeList").children;
+        if (i < 0) i = 0;
+        if (i > rows.length - 1) i = rows.length - 1;
+        placeFocus = i;
+        for (var k = 0; k < rows.length; k++) rows[k].className = "place" + (k === i ? " focus" : "");
+    }
+    function placeChosen() {
+        var p = places[placeFocus];
+        closeOverlay();
+        if (p) useLocation(placeCity, p);
+    }
+
     function applyName() { $("brandName").textContent = settings.name || "HomeDock"; }
     function noLocation() { $("now").textContent = t.t("noLocation"); }
 
@@ -264,6 +300,7 @@
         $("picker").className = "overlay";
         $("confirm").className = "overlay";
         $("settings").className = "overlay";
+        $("places").className = "overlay";
         if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     }
 
@@ -364,6 +401,11 @@
             else if (k === KEY.RIGHT && setFocusIdx === 2) focusSetting(3);
             else if (k === KEY.BACK) closeOverlay();
             else handled = false;
+        } else if (mode === "places") {
+            if (k === KEY.UP) setPlaceFocus(placeFocus - 1);
+            else if (k === KEY.DOWN) setPlaceFocus(placeFocus + 1);
+            else if (k === KEY.BACK) closeOverlay();
+            else handled = false;
         }
         if (handled) e.preventDefault();
     }
@@ -379,6 +421,7 @@
         } else if (mode === "picker") pickChosen();
         else if (mode === "confirm") confirmChosen();
         else if (mode === "settings") settingsChosen();
+        else if (mode === "places") placeChosen();
     }
 
     // ---------- start ----------

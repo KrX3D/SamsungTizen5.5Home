@@ -188,4 +188,7 @@ html, body {
     font-size: 30px; background: rgba(255,255,255,0.12);
 }
 .btn.focus { background: #fff; color: #111; }
+
+.place { font-size: 30px; padding: 16px 24px; border-radius: 16px; margin-bottom: 8px; background: rgba(255,255,255,0.08); }
+.place.focus { background: #fff; color: #111; }
 .dialog input.focus { border-color: #fff; }

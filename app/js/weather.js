@@ -91,14 +91,21 @@
         }, function () { done && done(false); });
     }
 
-    // Resolves a city name once and remembers the coordinates in settings.
+    // Looks up a city name and returns every match, so the user can pick
+    // between places that share a name (Frankfurt am Main / Frankfurt (Oder)).
     function geocode(city, ok, fail) {
-        var url = "https://geocoding-api.open-meteo.com/v1/search?count=1&language=" + window.I18N.lang +
+        var url = "https://geocoding-api.open-meteo.com/v1/search?count=6&language=" + window.I18N.lang +
             "&name=" + encodeURIComponent(city);
         get(url, function (j) {
-            var r = j.results && j.results[0];
-            if (!r) { fail(); return; }
-            ok({ name: r.name, lat: r.latitude, lon: r.longitude });
+            var list = [];
+            var rs = j.results || [];
+            for (var i = 0; i < rs.length; i++) {
+                var r = rs[i];
+                var where = [r.admin1, r.country].filter(function (x) { return x; }).join(", ");
+                list.push({ name: r.name, label: r.name + (where ? ", " + where : ""), lat: r.latitude, lon: r.longitude });
+            }
+            if (!list.length) { fail(); return; }
+            ok(list);
         }, fail);
     }
 
