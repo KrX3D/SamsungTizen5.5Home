@@ -4,6 +4,7 @@
     "use strict";
 
     var SELF_ID = "krx3dLnch1.Home";
+    var SELF_PKG = "krx3dLnch1";        // our own package: .Home and the .Boot service
     var APPS_KEY = "homedock.apps";
     var SETTINGS_KEY = "homedock.settings";
     var DEFAULT_APPS = [
@@ -75,7 +76,8 @@
         catch (e) { return null; }    // not installed (or no tizen API in a desktop browser)
     }
     function isPickable(a) {
-        if (!a.show || a.id === SELF_ID) return false;
+        // Hide our own components (krx3dLnch1.Home and the .Boot service).
+        if (!a.show || a.id.indexOf(SELF_PKG + ".") === 0) return false;
         if (SYSTEM_APPS[a.id]) return true;
         var m = /^([A-Za-z0-9]{10})\.(.+)$/.exec(a.id);
         return !!m && !HIDDEN_PKG[m[1]] && !HIDDEN_SUFFIX.test(m[2]);
