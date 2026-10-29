@@ -17,7 +17,7 @@ Tested target: Tizen 5.0 (2019 models). The code is ES5 and avoids CSS newer tha
 | Left / Right | Move through the dock or the sources row |
 | OK | Open the app, or open the app picker on **+** |
 | Hold OK | On an app: **Move** / **Remove**. On a source: **Rename** / **Hide** |
-| Red | Settings (grouped): name/clock, current weather + 7-day forecast separately, wallpaper, photo credit, sources |
+| Red | Settings (grouped): name/clock; weather (current, details, hourly, 7-day, °C/°F); wallpaper; photo credit; sources |
 | Back | Leave HomeDock |
 
 The weather location is picked from a list (country, state, district, first letter, place)

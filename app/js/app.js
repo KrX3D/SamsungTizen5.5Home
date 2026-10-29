@@ -547,8 +547,11 @@
 
         rows.push({ k: "hWeather", type: "header", label: t.t("grpWeather") });
         rows.push({ k: "now", type: "toggle", label: t.t("showNow"), on: s.now !== false });
+        rows.push({ k: "details", type: "toggle", label: t.t("showDetails"), on: s.details !== false });
+        rows.push({ k: "hourly", type: "toggle", label: t.t("showHourly"), on: s.hourly !== false });
         rows.push({ k: "forecast", type: "toggle", label: t.t("showForecast"), on: s.forecast !== false });
-        if (s.now !== false || s.forecast !== false) {
+        rows.push({ k: "units", type: "toggle", label: t.t("useFahrenheit"), on: settings.units === "imperial" });
+        if (s.now !== false || s.details !== false || s.hourly !== false || s.forecast !== false) {
             rows.push({ k: "loc", type: "value", label: t.t("location"), val: locLabel() });
             rows.push({ k: "search", type: "text", label: t.t("orSearch"), val: "" });
         }
@@ -635,11 +638,15 @@
         if (r.k === "name") s.name = s.name === false;
         else if (r.k === "clock") s.clock = s.clock === false;
         else if (r.k === "now") s.now = s.now === false;
+        else if (r.k === "details") s.details = s.details === false;
+        else if (r.k === "hourly") s.hourly = s.hourly === false;
         else if (r.k === "forecast") s.forecast = s.forecast === false;
+        else if (r.k === "units") settings.units = settings.units === "imperial" ? "metric" : "imperial";
         else if (r.k === "credit") s.credit = s.credit === false;
         else if (r.k === "sources") s.sources = s.sources === false;
         save(SETTINGS_KEY, settings);
         applyDisplay();
+        if (r.k === "units") Weather.refresh(settings);
         renderSources();
         renderSettings();
     }
@@ -697,6 +704,8 @@
         $("brand").style.display = s.name === false ? "none" : "";
         $("time").style.display = $("date").style.display = s.clock === false ? "none" : "";
         $("now").style.display = s.now === false ? "none" : "";
+        $("wxextra").style.display = s.details === false ? "none" : "";
+        $("hourly").style.display = s.hourly === false ? "none" : "";
         $("forecast").style.display = s.forecast === false ? "none" : "";
         $("credit").style.display = s.credit === false ? "none" : "";
     }
@@ -1019,7 +1028,7 @@
         settings = load(SETTINGS_KEY, {});
         // Migrate the old single "weather" toggle to the split now/forecast ones.
         var sh = show();
-        if (sh.weather === false) { sh.now = false; sh.forecast = false; }
+        if (sh.weather === false) { sh.now = false; sh.details = false; sh.hourly = false; sh.forecast = false; }
         delete sh.weather;
         applyName();
         applyDisplay();
