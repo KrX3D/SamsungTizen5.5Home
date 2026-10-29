@@ -29,6 +29,8 @@
         <div id="label"></div>
     </div>
 
+    <div id="srcWrap"><div id="srcRow"></div></div>
+
     <div id="credit"></div>
     <div id="toast"></div>
 
@@ -58,6 +60,14 @@
         </div>
     </div>
 
+    <!-- Rename an HDMI source -->
+    <div id="rename" class="overlay">
+        <div class="dialog glass">
+            <div class="sheetTitle" id="renameTitle"></div>
+            <input id="renameInput" type="text">
+        </div>
+    </div>
+
     <!-- Generic list picker: country / state / letter / town, search matches -->
     <div id="choice" class="overlay">
         <div class="sheet">
@@ -69,6 +79,7 @@
     <script src="js/wallpapers.js"></script>
     <script src="js/i18n.js"></script>
     <script src="js/weather.js"></script>
+    <script src="js/sources.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

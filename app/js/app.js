@@ -49,7 +49,7 @@
 
     var dock = [];          // [{id, name, icon}]
     var focus = 0;          // index into dock; dock.length = the "+" tile
-    var mode = "dock";      // dock | move | menu | picker | settings | choice
+    var mode = "dock";      // dock | sources | srcmenu | rename | move | menu | picker | settings | choice
     var settings = {};
 
     // ---------- storage ----------
@@ -537,6 +537,10 @@
         }
         rows.push({ k: "wallMode", type: "value", label: t.t("wallpaper"), val: t.t("wall_" + (wall().mode || "rotate")) });
         if (wall().mode === "single") rows.push({ k: "wallPick", type: "value", label: t.t("wallpaperPhoto"), val: wallPhotoLabel() });
+        if (srcList.length) {
+            rows.push({ k: "sources", type: "toggle", label: t.t("showSources"), on: s.sources !== false });
+            if (hasHiddenSources()) rows.push({ k: "srcReset", type: "action", label: t.t("resetSources") });
+        }
         rows.push({ k: "close", type: "action", label: t.t("close") });
         return rows;
     }
@@ -593,8 +597,10 @@
         if (r.k === "name") s.name = s.name === false;
         else if (r.k === "clock") s.clock = s.clock === false;
         else if (r.k === "weather") s.weather = s.weather === false;
+        else if (r.k === "sources") s.sources = s.sources === false;
         save(SETTINGS_KEY, settings);
         applyDisplay();
+        renderSources();
         renderSettings();
     }
 
@@ -637,6 +643,7 @@
         if (r.k === "loc") openLocation();
         else if (r.k === "wallMode") chooseWallMode();
         else if (r.k === "wallPick") chooseWallPhoto();
+        else if (r.k === "srcReset") { srcCfg().hidden = {}; save(SETTINGS_KEY, settings); renderSources(); renderSettings(); }
         else if (r.k === "close") closeOverlay();
     }
 
@@ -730,6 +737,133 @@
         wallTimer = setInterval(function () { wallIdx = (wallIdx + 1) % walls.length; showWall(wallIdx); }, WALL_MS);
     }
 
+    // ---------- external sources (HDMI) ----------
+    var srcList = [], srcFocus = 0, srcMenuFocus = 0, srcMenuTarget = null, renameTarget = null;
+    var SRC_MENU = ["rename", "hide", "cancel"];
+
+    function srcCfg() { var c = settings.sources || (settings.sources = {}); c.hidden = c.hidden || {}; c.names = c.names || {}; return c; }
+    function srcKey(s) { return s.type + s.number; }
+    function srcName(s) { return srcCfg().names[srcKey(s)] || (s.type + " " + s.number); }
+    function visibleSources() {
+        if (show().sources === false) return [];
+        var h = srcCfg().hidden;
+        return srcList.filter(function (s) { return !h[srcKey(s)]; });
+    }
+    function hasHiddenSources() {
+        var h = srcCfg().hidden;
+        for (var i = 0; i < srcList.length; i++) if (h[srcKey(srcList[i])]) return true;
+        return false;
+    }
+
+    function loadSources() {
+        if (!window.Sources) return;
+        Sources.list(function (all) { srcList = all; renderSources(); });
+    }
+    function srcTile(s) {
+        var el = document.createElement("div");
+        el.className = "src" + (s.connected ? "" : " off");
+        el.innerHTML =
+            '<div class="sin"><svg viewBox="0 0 24 24" width="40" height="40">' +
+            '<rect x="2" y="6" width="20" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>' +
+            '<path d="M8 21h8M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' +
+            '<span></span></div>';
+        el.querySelector("span").textContent = srcName(s);
+        return el;
+    }
+    function renderSources() {
+        var row = $("srcRow");
+        row.innerHTML = "";
+        var vis = visibleSources();
+        $("srcWrap").style.display = vis.length ? "" : "none";
+        for (var i = 0; i < vis.length; i++) row.appendChild(srcTile(vis[i]));
+        if (mode === "sources") setSrcFocus(Math.min(srcFocus, vis.length - 1));
+    }
+    function setSrcFocus(i) {
+        var tiles = $("srcRow").children;
+        if (!tiles.length) { mode = "dock"; setFocus(focus); return; }
+        i = Math.max(0, Math.min(tiles.length - 1, i));
+        for (var k = 0; k < tiles.length; k++) tiles[k].className = tiles[k].className.replace(" focus", "");
+        srcFocus = i;
+        tiles[i].className += " focus";
+    }
+    function enterSources() {
+        var vis = visibleSources();
+        if (!vis.length) return false;
+        mode = "sources";
+        var tiles = $("strip").children;
+        for (var k = 0; k < tiles.length; k++) tiles[k].className = tiles[k].className.replace(/ (focus|moving)/g, "");
+        $("label").textContent = "";
+        setSrcFocus(Math.min(srcFocus, vis.length - 1));
+        return true;
+    }
+    function leaveSources() { mode = "dock"; setFocus(focus); }
+    function openSourceAt(i) {
+        var s = visibleSources()[i];
+        if (!s) return;
+        toast(t.t("opening", srcName(s)));
+        Sources.open(s.number, function () {}, function () { toast(t.t("notAvailable", srcName(s))); });
+    }
+
+    function openSrcMenu() {
+        var s = visibleSources()[srcFocus];
+        if (!s) return;
+        srcMenuTarget = s; mode = "srcmenu";
+        $("menuTitle").textContent = srcName(s);
+        $("menuInfo").textContent = "";
+        var list = $("menuList");
+        list.innerHTML = "";
+        for (var i = 0; i < SRC_MENU.length; i++) {
+            var r = document.createElement("div");
+            r.className = "opt";
+            r.textContent = t.t(SRC_MENU[i]);
+            list.appendChild(r);
+        }
+        $("menu").className = "overlay on";
+        setSrcMenuFocus(0);
+    }
+    function setSrcMenuFocus(i) {
+        var rows = $("menuList").children;
+        srcMenuFocus = Math.max(0, Math.min(rows.length - 1, i));
+        for (var k = 0; k < rows.length; k++) rows[k].className = "opt" + (k === srcMenuFocus ? " focus" : "");
+    }
+    function srcMenuChosen() {
+        var action = SRC_MENU[srcMenuFocus], s = srcMenuTarget;
+        $("menu").className = "overlay";
+        if (action === "hide") {
+            srcCfg().hidden[srcKey(s)] = true;
+            save(SETTINGS_KEY, settings);
+            renderSources();
+            if (!enterSources()) leaveSources();
+        } else if (action === "rename") {
+            openRename(s);
+        } else {
+            enterSources();
+        }
+    }
+
+    function openRename(s) {
+        renameTarget = s;
+        mode = "rename";
+        $("renameTitle").textContent = srcName(s);
+        var inp = $("renameInput");
+        inp.value = srcCfg().names[srcKey(s)] || "";
+        $("rename").className = "overlay on";
+        setTimeout(function () { inp.focus(); }, 0);
+    }
+    function renameDone() {
+        var s = renameTarget;
+        if (s) {
+            var v = $("renameInput").value.replace(/^\s+|\s+$/g, "");
+            if (v) srcCfg().names[srcKey(s)] = v;
+            else delete srcCfg().names[srcKey(s)];
+            save(SETTINGS_KEY, settings);
+        }
+        $("rename").className = "overlay";
+        renameTarget = null;
+        renderSources();
+        if (!enterSources()) leaveSources();
+    }
+
     // ---------- keys ----------
     // OK acts on key *up*, so holding it can become a long press (menu)
     // without the release then also launching the app.
@@ -753,6 +887,8 @@
             okLong = false;
             if (mode === "dock" && focus < dock.length) {
                 okTimer = setTimeout(function () { okLong = true; openMenu(); }, LONG_PRESS_MS);
+            } else if (mode === "sources") {
+                okTimer = setTimeout(function () { okLong = true; openSrcMenu(); }, LONG_PRESS_MS);
             }
             return;
         }
@@ -761,8 +897,22 @@
         if (mode === "dock") {
             if (k === KEY.LEFT) setFocus(focus - 1);
             else if (k === KEY.RIGHT) setFocus(focus + 1);
+            else if (k === KEY.DOWN) { if (!enterSources()) handled = false; }
             else if (k === KEY.RED) openSettings();
             else if (k === KEY.BACK) { try { tizen.application.getCurrentApplication().hide(); } catch (x) {} }
+            else handled = false;
+        } else if (mode === "sources") {
+            if (k === KEY.LEFT) setSrcFocus(srcFocus - 1);
+            else if (k === KEY.RIGHT) setSrcFocus(srcFocus + 1);
+            else if (k === KEY.UP || k === KEY.BACK) leaveSources();
+            else handled = false;
+        } else if (mode === "srcmenu") {
+            if (k === KEY.UP) setSrcMenuFocus(srcMenuFocus - 1);
+            else if (k === KEY.DOWN) setSrcMenuFocus(srcMenuFocus + 1);
+            else if (k === KEY.BACK) { $("menu").className = "overlay"; enterSources(); }
+            else handled = false;
+        } else if (mode === "rename") {
+            if (k === KEY.BACK) renameDone();
             else handled = false;
         } else if (mode === "move") {
             if (k === KEY.LEFT) moveBy(-1);
@@ -812,7 +962,9 @@
         if (mode === "dock") {
             if (focus === dock.length) openPicker();
             else launch(dock[focus]);
-        } else if (mode === "move") endMove();
+        } else if (mode === "sources") openSourceAt(srcFocus);
+        else if (mode === "srcmenu") srcMenuChosen();
+        else if (mode === "move") endMove();
         else if (mode === "menu") menuChosen();
         else if (mode === "picker") pickChosen();
         else if (mode === "settings") settingsChosen();
@@ -831,6 +983,9 @@
         setInterval(tick, 10000);
         applyWallpaper();
         Weather.start(settings, noLocation);
+        loadSources();
+        var ri = $("renameInput");
+        if (ri) ri.onblur = function () { if (mode === "rename") renameDone(); };
         document.addEventListener("keydown", onKeyDown);
         document.addEventListener("keyup", onKeyUp);
         try { tizen.tvinputdevice.registerKey("ColorF0Red"); } catch (x) {}
