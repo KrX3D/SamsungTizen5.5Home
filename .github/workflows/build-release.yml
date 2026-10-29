@@ -43,7 +43,8 @@ jobs:
         run: |
           set -euo pipefail
           VER="1.0.${GITHUB_RUN_NUMBER}"
-          sed -i "0,/<widget /s/version=\"[^\"]*\"/version=\"${VER}\"/" app/config.xml
+          # Only the <widget> line: its version attribute, not the <?xml version?> declaration.
+          sed -i "/<widget /s/ version=\"[^\"]*\"/ version=\"${VER}\"/" app/config.xml
           APP_ID=$(sed -n 's/.*<tizen:application[^>]*id="\([^"]*\)".*/\1/p' app/config.xml | head -n1)
           echo "VERSION=${VER}" >> "$GITHUB_ENV"
           echo "APP_ID=${APP_ID}" >> "$GITHUB_ENV"
