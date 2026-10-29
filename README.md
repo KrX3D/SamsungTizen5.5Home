@@ -30,8 +30,10 @@ light or dark background that never changes.
 When the TV reports HDMI inputs, a sources row appears under the dock; OK switches to an
 input. Hidden sources can be brought back from Settings.
 
-To have it open after the TV turns on, open HomeDock last and enable
-**Settings > General > Smart Features > Autorun Last App**.
+HomeDock ships a boot service that tries to open it after the TV powers on, with no PC
+needed. Whether on-boot services run is firmware-dependent, so if it does not start on
+your TV, open HomeDock last and enable **Settings > General > Smart Features > Autorun Last App**,
+or run a PC-side launch-on-wake watcher. Pressing Home still opens Samsung Home.
 
 ## Install
 
