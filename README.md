@@ -24,7 +24,7 @@ To have it open after the TV turns on, open HomeDock last and enable
 
 ## Install
 
-Add `KrX3D/HomeDock` under **Saved Repos** in TizenBrew Installer and install it from there.
+Add `KrX3D/SamsungTizen5.5Home` under **Saved Repos** in TizenBrew Installer and install it from there.
 Updates arrive the same way.
 
 Or install a release by hand with Tizen's `sdb`:
