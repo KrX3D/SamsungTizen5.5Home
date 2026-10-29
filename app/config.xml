@@ -2,9 +2,19 @@
 <widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://krx3d.home/applauncher" version="1.0.0" viewmodes="maximized">
     <tizen:application id="krx3dLnch1.Home" package="krx3dLnch1" required_version="5.0"/>
     <content src="index.html"/>
+    <!-- Register as a candidate for the Home / "main" operation. This alone does
+         not make Home open HomeDock (that is a privileged per-user setting), but
+         it is the prerequisite and is harmless where it has no effect.
+         reload="disable" needs required_version >= 2.4, which 5.0 satisfies. -->
+    <tizen:app-control>
+        <tizen:src name="index.html" reload="disable"/>
+        <tizen:operation name="http://tizen.org/appcontrol/operation/main"/>
+    </tizen:app-control>
     <feature name="http://tizen.org/feature/screen.size.all"/>
     <icon src="icon.png"/>
     <name>HomeDock</name>
+    <!-- Let the TV warm the app in the background at power-on so it opens fast. -->
+    <tizen:metadata key="http://samsung.com/tv/metadata/prelaunch.support" value="true"/>
     <access origin="https://open-meteo.com" subdomains="true"/>
     <tizen:privilege name="http://tizen.org/privilege/internet"/>
     <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
