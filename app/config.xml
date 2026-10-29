@@ -2,6 +2,17 @@
 <widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://krx3d.home/applauncher" version="1.0.0" viewmodes="maximized">
     <tizen:application id="krx3dLnch1.Home" package="krx3dLnch1" required_version="5.0"/>
     <content src="index.html"/>
+    <!-- Boot service: opens HomeDock after the TV powers on, so autostart needs
+         no PC. on-boot/auto-restart need required_version >= 2.4 (5.0 is fine)
+         and background-support enabled below. Whether on-boot services actually
+         run is firmware-dependent; where they don't, the app still works and you
+         fall back to "Autorun Last App" or a PC watcher. -->
+    <tizen:service id="krx3dLnch1.Boot" on-boot="true" auto-restart="true">
+        <tizen:content src="service/index.js"/>
+        <tizen:name>HomeDockBoot</tizen:name>
+        <tizen:description>Opens HomeDock after the TV powers on</tizen:description>
+        <tizen:category name="http://tizen.org/category/service"/>
+    </tizen:service>
     <!-- Register as a candidate for the Home / "main" operation. This alone does
          not make Home open HomeDock (that is a privileged per-user setting), but
          it is the prerequisite and is harmless where it has no effect.
@@ -22,5 +33,5 @@
     <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
     <tizen:privilege name="http://tizen.org/privilege/tv.window"/>
     <tizen:profile name="tv"/>
-    <tizen:setting background-support="disable" context-menu="disable" encryption="disable" hwkey-event="enable" screen-orientation="landscape"/>
+    <tizen:setting background-support="enable" context-menu="disable" encryption="disable" hwkey-event="enable" screen-orientation="landscape"/>
 </widget>
