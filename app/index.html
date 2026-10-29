@@ -50,20 +50,11 @@
         </div>
     </div>
 
-    <!-- Settings (red button) -->
+    <!-- Settings (red button): a scrollable list built in app.js -->
     <div id="settings" class="overlay">
-        <div class="dialog glass wide">
+        <div class="sheet narrow">
             <div class="sheetTitle" data-i18n="settings"></div>
-            <label data-i18n="location"></label>
-            <div class="btn row" id="btnLoc" data-base="btn row"></div>
-            <label data-i18n="orSearch"></label>
-            <input id="setCity" type="text">
-            <label data-i18n="tvName"></label>
-            <input id="setName" type="text">
-            <div class="buttons">
-                <div class="btn" id="btnSave" data-i18n="save"></div>
-                <div class="btn" id="btnClose" data-i18n="cancel"></div>
-            </div>
+            <div id="setView" class="view"><div id="setList"></div></div>
         </div>
     </div>
 

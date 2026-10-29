@@ -367,7 +367,19 @@
             var el = document.createElement("div");
             el.className = "opt";
             el.style.width = w + "px";
-            el.textContent = items[i].label;
+            if (items[i].thumb) {
+                el.className = "opt thumb";
+                var th = document.createElement("div");
+                th.className = "othumb";
+                th.style.backgroundImage = "url('" + items[i].thumb + "')";
+                var lb = document.createElement("div");
+                lb.className = "olabel";
+                lb.textContent = items[i].label;
+                el.appendChild(th);
+                el.appendChild(lb);
+            } else {
+                el.textContent = items[i].label;
+            }
             grid.appendChild(el);
         }
         $("choice").className = "overlay on";
@@ -382,9 +394,10 @@
         var els = $("choiceGrid").children;
         if (!els.length) return;
         i = Math.max(0, Math.min(els.length - 1, i));
-        if (els[choiceFocus]) els[choiceFocus].className = "opt";
+        // Keep whatever classes the item carries (e.g. "thumb"); only toggle focus.
+        if (els[choiceFocus]) els[choiceFocus].className = els[choiceFocus].className.replace(" focus", "");
         choiceFocus = i;
-        els[i].className = "opt focus";
+        els[i].className += " focus";
         var rowH = els[0].offsetHeight + 14;
         var row = Math.floor(i / choice.cols);
         $("choiceGrid").style.transform = "translateY(" + (-Math.max(0, row - 4) * rowH) + "px)";
@@ -501,51 +514,146 @@
     }
 
     // ---------- settings ----------
-    var SET_ITEMS = ["btnLoc", "setCity", "setName", "btnSave", "btnClose"];
-    var setFocusIdx = 0;
+    var settingRows = [], setFocusIdx = 0, focusKey = "name";
+
+    function show() { return settings.show || (settings.show = {}); }
+    function wall() { return settings.wall || (settings.wall = { mode: "rotate" }); }
+    function locLabel() { return settings.loc ? settings.loc.name : t.t("locationNone"); }
+    function wallPhotoLabel() {
+        var f = wall().file;
+        for (var i = 0; i < walls.length; i++) if (walls[i].file === f) return (walls[i].credit || f).split(" · ")[0];
+        return t.t("wall_rotate");
+    }
+
+    function buildSettingsRows() {
+        var s = show(), rows = [];
+        rows.push({ k: "name", type: "toggle", label: t.t("showName"), on: s.name !== false });
+        if (s.name !== false) rows.push({ k: "nameText", type: "text", label: t.t("tvName"), val: settings.name || "" });
+        rows.push({ k: "clock", type: "toggle", label: t.t("showClock"), on: s.clock !== false });
+        rows.push({ k: "weather", type: "toggle", label: t.t("showWeather"), on: s.weather !== false });
+        if (s.weather !== false) {
+            rows.push({ k: "loc", type: "value", label: t.t("location"), val: locLabel() });
+            rows.push({ k: "search", type: "text", label: t.t("orSearch"), val: "" });
+        }
+        rows.push({ k: "wallMode", type: "value", label: t.t("wallpaper"), val: t.t("wall_" + (wall().mode || "rotate")) });
+        if (wall().mode === "single") rows.push({ k: "wallPick", type: "value", label: t.t("wallpaperPhoto"), val: wallPhotoLabel() });
+        rows.push({ k: "close", type: "action", label: t.t("close") });
+        return rows;
+    }
+
+    function renderSettings() {
+        var list = $("setList");
+        list.innerHTML = "";
+        settingRows = buildSettingsRows();
+        settingRows.forEach(function (r) {
+            var row = document.createElement("div");
+            row.className = "srow" + (r.type === "action" ? " action" : "");
+            var lab = document.createElement("div");
+            lab.className = "slabel";
+            lab.textContent = r.label;
+            row.appendChild(lab);
+            var val = document.createElement("div");
+            if (r.type === "toggle") { val.className = "sval toggle" + (r.on ? " on" : ""); val.innerHTML = "<i></i>"; }
+            else if (r.type === "text") {
+                val.className = "sval";
+                var inp = document.createElement("input");
+                inp.type = "text"; inp.value = r.val;
+                inp.onblur = (function (key) { return function () { onInputDone(key, this.value); }; })(r.k);
+                val.appendChild(inp);
+            } else { val.className = "sval"; if (r.type === "value") val.textContent = r.val + "  ›"; }
+            row.appendChild(val);
+            list.appendChild(row);
+        });
+        var keep = -1;
+        for (var i = 0; i < settingRows.length; i++) if (settingRows[i].k === focusKey) keep = i;
+        setSettingFocus(keep >= 0 ? keep : Math.min(setFocusIdx, settingRows.length - 1));
+    }
+
+    function setSettingFocus(i) {
+        var rows = $("setList").children;
+        if (!rows.length) return;
+        i = Math.max(0, Math.min(rows.length - 1, i));
+        for (var k = 0; k < rows.length; k++) rows[k].className = rows[k].className.replace(" focus", "");
+        setFocusIdx = i; focusKey = settingRows[i].k;
+        rows[i].className += " focus";
+        var rowH = rows[0].offsetHeight + 12, view = $("setView").clientHeight;
+        var sc = Math.max(0, Math.min(i * rowH - view / 2, rows.length * rowH - view));
+        $("setList").style.transform = "translateY(" + (-sc) + "px)";
+    }
 
     function openSettings() {
         $("choice").className = "overlay";
         mode = "settings";
-        $("btnLoc").textContent = (settings.loc ? settings.loc.name : t.t("locationNone")) + "  ›";
-        $("setCity").value = "";
-        $("setName").value = settings.name || "";
         $("settings").className = "overlay on";
-        focusSetting(0);
+        renderSettings();
     }
-    function focusSetting(i) {
-        setFocusIdx = i;
-        for (var k = 0; k < SET_ITEMS.length; k++) {
-            var el = $(SET_ITEMS[k]);
-            var base = el.getAttribute("data-base") || (el.tagName === "INPUT" ? "" : "btn");
-            el.className = (base + (k === i ? " focus" : "")).replace(/^\s+/, "");
-        }
-    }
-    function settingsChosen() {
-        var id = SET_ITEMS[setFocusIdx];
-        if (id === "btnLoc") { openLocation(); return; }
-        if (id === "setCity" || id === "setName") { $(id).focus(); return; }   // opens the TV keyboard
-        if (id === "btnClose") { closeOverlay(); return; }
 
-        settings.name = $("setName").value.replace(/^\s+|\s+$/g, "");
+    function flip(r) {
+        var s = show();
+        if (r.k === "name") s.name = s.name === false;
+        else if (r.k === "clock") s.clock = s.clock === false;
+        else if (r.k === "weather") s.weather = s.weather === false;
         save(SETTINGS_KEY, settings);
-        applyName();
-        closeOverlay();
+        applyDisplay();
+        renderSettings();
+    }
 
-        var city = $("setCity").value.replace(/^\s+|\s+$/g, "");
-        if (!city) return;
+    function onInputDone(key, value) {
+        value = value.replace(/^\s+|\s+$/g, "");
+        if (key === "nameText") { settings.name = value; save(SETTINGS_KEY, settings); applyName(); }
+        else if (key === "search" && value) { searchCity(value); }
+    }
+
+    function searchCity(city) {
         Weather.geocode(city, function (list) {
             settings.locPath = null;
             if (list.length === 1) { useLocation(city, list[0]); return; }
             var items = list.map(function (p) { return { label: p.label, key: p.label, value: p }; });
-            openChoice(t.t("chooseLocation"), items, 1, function (it) {
-                closeOverlay();
-                useLocation(city, it.value);
-            }, closeOverlay);
+            openChoice(t.t("chooseLocation"), items, 1, function (it) { closeOverlay(); useLocation(city, it.value); }, openSettings);
         }, function () { toast(t.t("locNotFound", city)); });
     }
+
+    function chooseWallMode() {
+        var items = ["rotate", "single", "light", "dark"].map(function (m) { return { label: t.t("wall_" + m), key: m }; });
+        openChoice(t.t("wallpaper"), items, 2, function (it) {
+            if (it.key === "single" && !wall().file && walls.length) wall().file = walls[0].file;
+            wall().mode = it.key; save(SETTINGS_KEY, settings); applyWallpaper(); openSettings();
+        }, openSettings, wall().mode);
+    }
+    function chooseWallPhoto() {
+        var items = walls.map(function (w) {
+            return { label: (w.credit || w.file).split(" · ")[0], key: w.file, thumb: "assets/wallpapers/" + w.file };
+        });
+        openChoice(t.t("wallpaperPhoto"), items, 4, function (it) {
+            wall().file = it.key; wall().mode = "single"; save(SETTINGS_KEY, settings); applyWallpaper(); openSettings();
+        }, openSettings, wall().file);
+    }
+
+    function settingsChosen() {
+        var r = settingRows[setFocusIdx];
+        if (!r) return;
+        if (r.type === "toggle") { flip(r); return; }
+        if (r.type === "text") { var inp = $("setList").children[setFocusIdx].querySelector("input"); if (inp) inp.focus(); return; }
+        if (r.k === "loc") openLocation();
+        else if (r.k === "wallMode") chooseWallMode();
+        else if (r.k === "wallPick") chooseWallPhoto();
+        else if (r.k === "close") closeOverlay();
+    }
+
     function applyName() { $("brandName").textContent = settings.name || "HomeDock"; }
-    function noLocation() { $("now").textContent = t.t("noLocation"); }
+
+    function applyDisplay() {
+        var s = show();
+        $("brand").style.display = s.name === false ? "none" : "";
+        $("time").style.display = $("date").style.display = s.clock === false ? "none" : "";
+        var wOff = s.weather === false;
+        $("now").style.display = wOff ? "none" : "";
+        $("forecast").style.display = wOff ? "none" : "";
+    }
+
+    function setTheme(light) { document.body.className = light ? "light" : ""; }
+
+    function noLocation() { if (show().weather !== false) $("now").textContent = t.t("noLocation"); }
 
     function closeOverlay() {
         mode = "dock";
@@ -590,11 +698,36 @@
         };
         img.src = "assets/wallpapers/" + w.file;
     }
-    function startWalls() {
+    var wallTimer = null;
+    function wallIndexOf(f) { for (var i = 0; i < walls.length; i++) if (walls[i].file === f) return i; return -1; }
+
+    function applyWallpaper() {
+        var w = wall();
+        clearInterval(wallTimer); wallTimer = null;
+        var a = $("bgA"), b = $("bgB");
+        if (w.mode === "light" || w.mode === "dark") {
+            a.className = "bg"; b.className = "bg"; a.style.backgroundImage = ""; b.style.backgroundImage = "";
+            $("shade").style.display = "none";
+            $("credit").textContent = "";
+            document.body.style.background = w.mode === "light"
+                ? "linear-gradient(160deg,#eef2f6 0%,#d4dde7 100%)"
+                : "linear-gradient(160deg,#181b20 0%,#0b0d10 100%)";
+            setTheme(w.mode === "light");
+            return;
+        }
+        $("shade").style.display = "";
+        document.body.style.background = "#000";
+        setTheme(false);
         if (!walls.length) return;
+        if (w.mode === "single") {
+            var i = wallIndexOf(w.file);
+            wallIdx = i < 0 ? 0 : i;
+            showWall(wallIdx);
+            return;
+        }
         wallIdx = Math.floor(Math.random() * walls.length);
         showWall(wallIdx);
-        setInterval(function () { wallIdx = (wallIdx + 1) % walls.length; showWall(wallIdx); }, WALL_MS);
+        wallTimer = setInterval(function () { wallIdx = (wallIdx + 1) % walls.length; showWall(wallIdx); }, WALL_MS);
     }
 
     // ---------- keys ----------
@@ -655,10 +788,9 @@
             else if (k === KEY.BACK) closeOverlay();
             else handled = false;
         } else if (mode === "settings") {
-            if (k === KEY.UP) focusSetting(setFocusIdx >= 3 ? 2 : Math.max(0, setFocusIdx - 1));
-            else if (k === KEY.DOWN) focusSetting(setFocusIdx >= 3 ? setFocusIdx : setFocusIdx + 1);
-            else if (k === KEY.LEFT && setFocusIdx === 4) focusSetting(3);
-            else if (k === KEY.RIGHT && setFocusIdx === 3) focusSetting(4);
+            if (k === KEY.UP) setSettingFocus(setFocusIdx - 1);
+            else if (k === KEY.DOWN) setSettingFocus(setFocusIdx + 1);
+            else if ((k === KEY.LEFT || k === KEY.RIGHT) && settingRows[setFocusIdx] && settingRows[setFocusIdx].type === "toggle") flip(settingRows[setFocusIdx]);
             else if (k === KEY.BACK) closeOverlay();
             else handled = false;
         } else if (mode === "choice") {
@@ -692,11 +824,12 @@
         t.apply();
         settings = load(SETTINGS_KEY, {});
         applyName();
+        applyDisplay();
         loadDock();
         renderDock();
         tick();
         setInterval(tick, 10000);
-        startWalls();
+        applyWallpaper();
         Weather.start(settings, noLocation);
         document.addEventListener("keydown", onKeyDown);
         document.addEventListener("keyup", onKeyUp);
