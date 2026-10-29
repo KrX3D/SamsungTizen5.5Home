@@ -16,12 +16,15 @@ Tested target: Tizen 5.0 (2019 models). The code is ES5 and avoids CSS newer tha
 | Left / Right | Move through the dock |
 | OK | Open the app, or open the app picker on **+** |
 | Hold OK | Menu for the focused app: **Move** (then Left / Right, OK when done) or **Remove** |
-| Red | Settings: weather location and the name shown top left |
+| Red | Settings: show/hide clock, weather and name; wallpaper mode; weather location; TV name |
 | Back | Leave HomeDock |
 
 The weather location is picked from a list (country, state, district, first letter, place)
 covering 26 countries, every German village included, or found by typing a name. The list
 reopens at the last pick; Back steps up a level.
+
+The wallpaper can rotate through the bundled photos, show one chosen photo, or be a plain
+light or dark background that never changes.
 
 To have it open after the TV turns on, open HomeDock last and enable
 **Settings > General > Smart Features > Autorun Last App**.

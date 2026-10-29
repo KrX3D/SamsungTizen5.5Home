@@ -172,6 +172,7 @@ html, body {
     display: none;
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(8,8,10,0.92);
+    color: #fff;   /* stay readable even when body.light is set for a light wallpaper */
 }
 .overlay.on { display: block; }
 
@@ -230,3 +231,56 @@ html, body {
 }
 .tab.on { background: rgba(255,255,255,0.30); }
 .tab.focus { background: #fff; color: #111; }
+
+/* ---- Settings list ---- */
+.sheet.narrow { left: 420px; right: 420px; }
+#setList { transition: transform 0.2s ease; }
+.srow {
+    display: flex; align-items: center;
+    padding: 20px 28px; margin-bottom: 12px;
+    border-radius: 18px; background: rgba(255,255,255,0.07);
+    font-size: 32px;
+}
+.srow.focus { background: #fff; color: #111; }
+.srow.action { justify-content: center; opacity: 0.85; }
+.slabel { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sval { margin-left: 24px; opacity: 0.85; white-space: nowrap; }
+.srow.focus .sval { opacity: 1; }
+.sval input {
+    width: 360px; font-size: 28px; padding: 10px 16px;
+    color: #fff; background: rgba(255,255,255,0.12);
+    border: 2px solid transparent; border-radius: 12px;
+}
+.srow.focus .sval input { color: #111; background: rgba(0,0,0,0.08); border-color: #111; }
+/* Toggle switch */
+.sval.toggle {
+    width: 74px; height: 40px; border-radius: 20px;
+    background: rgba(255,255,255,0.22); position: relative; margin-left: 24px;
+}
+.sval.toggle i {
+    position: absolute; top: 4px; left: 4px; width: 32px; height: 32px;
+    border-radius: 50%; background: #fff; transition: left 0.15s ease;
+}
+.sval.toggle.on { background: #34c759; }
+.sval.toggle.on i { left: 38px; }
+.srow.focus .sval.toggle { background: rgba(0,0,0,0.18); }
+.srow.focus .sval.toggle.on { background: #2aa048; }
+
+/* Photo picker thumbnails */
+.opt.thumb { padding: 0; background: none; overflow: visible; }
+.opt.thumb .othumb {
+    height: 150px; border-radius: 14px; background-size: cover; background-position: center;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+}
+.opt.thumb .olabel { font-size: 22px; margin-top: 10px; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; }
+.opt.thumb.focus { background: none; color: #fff; }
+.opt.thumb.focus .othumb { box-shadow: 0 6px 18px rgba(0,0,0,0.4), 0 0 0 4px #fff; }
+
+/* ---- Light wallpaper theme ---- */
+body.light { color: #1a1d22; }
+body.light #shade { display: none; }
+body.light #brand, body.light #info, body.light #label, body.light #credit, body.light #toast { text-shadow: none; }
+body.light .glass { background: rgba(255,255,255,0.55); border-color: rgba(0,0,0,0.08); color: #1a1d22; }
+body.light #forecast { background: rgba(255,255,255,0.62); }
+body.light #forecast .foot, body.light #now .hl, body.light #date { opacity: 0.6; }
+body.light .tile.plus .in { background: rgba(0,0,0,0.10); }
