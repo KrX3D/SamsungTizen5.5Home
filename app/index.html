@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=1920, height=1080, user-scalable=no">
+    <meta name="viewport" content="width=1920, user-scalable=no">
     <title>HomeDock</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -36,18 +36,15 @@
     <div id="picker" class="overlay">
         <div class="sheet">
             <div class="sheetTitle" data-i18n="addApp"></div>
-            <div id="pickView"><div id="pickGrid"></div></div>
+            <div id="pickView" class="view"><div id="pickGrid" class="grid"></div></div>
         </div>
     </div>
 
-    <!-- Remove confirmation -->
-    <div id="confirm" class="overlay">
+    <!-- Hold OK on a dock app: move / remove -->
+    <div id="menu" class="overlay">
         <div class="dialog glass">
-            <div id="confirmText"></div>
-            <div class="buttons">
-                <div class="btn" id="btnRemove" data-i18n="remove"></div>
-                <div class="btn" id="btnCancel" data-i18n="cancel"></div>
-            </div>
+            <div class="sheetTitle" id="menuTitle"></div>
+            <div id="menuList"></div>
         </div>
     </div>
 
@@ -56,6 +53,8 @@
         <div class="dialog glass wide">
             <div class="sheetTitle" data-i18n="settings"></div>
             <label data-i18n="location"></label>
+            <div class="btn row" id="btnLoc" data-base="btn row"></div>
+            <label data-i18n="orSearch"></label>
             <input id="setCity" type="text">
             <label data-i18n="tvName"></label>
             <input id="setName" type="text">
@@ -66,15 +65,16 @@
         </div>
     </div>
 
-    <!-- Location matches, when a city name is ambiguous -->
-    <div id="places" class="overlay">
-        <div class="dialog glass wide">
-            <div class="sheetTitle" data-i18n="chooseLocation"></div>
-            <div id="placeList"></div>
+    <!-- Generic list picker: country / state / letter / town, search matches -->
+    <div id="choice" class="overlay">
+        <div class="sheet">
+            <div class="sheetTitle" id="choiceTitle"></div>
+            <div id="choiceView" class="view"><div id="choiceGrid" class="grid"></div></div>
         </div>
     </div>
 
     <script src="js/wallpapers.js"></script>
+    <script src="js/places.js"></script>
     <script src="js/i18n.js"></script>
     <script src="js/weather.js"></script>
     <script src="js/app.js"></script>

@@ -14,8 +14,30 @@
         "cg2m3QSB89.7tv",                   // Joyn
         "Jz7aUrV2Q4.Twitch"                 // Twitch
     ];
+
+    // Samsung's own apps worth offering in the picker. Every other system id
+    // (org.tizen.*, com.samsung.*) is internal, even when marked visible.
+    var SYSTEM_APPS = {
+        "com.samsung.tv.cobalt-yt": "YouTube",
+        "com.samsung.tv.cobalt-ytkids": "YouTube Kids",
+        "org.tizen.netflix-app": "Netflix",
+        "org.tizen.browser": "Internet"
+    };
+    // Bundled artwork for apps whose own icon the TV does not hand out.
+    var ICON_OVERRIDE = {
+        "com.samsung.tv.cobalt-yt": "img/youtube.svg",
+        "com.samsung.tv.cobalt-ytkids": "img/youtube.svg"
+    };
+    // Store and sideloaded apps have ids like "Jz7aUrV2Q4.Twitch". These
+    // suffixes are their background helpers, and 30IKH0OX8U is Samsung's
+    // Aria video framework.
+    var HIDDEN_SUFFIX = /(service|extension|weblauncher|cmswebapp|otapp|devicemanager)$/i;
+    var HIDDEN_PKG = { "30IKH0OX8U": true };
+
     var WALL_MS = 45000;
     var LONG_PRESS_MS = 700;
+    var TILE = 170, TILE_STEP = 198;       // tile width, and width + 2 x 14px margin
+    var DOCK_INSET = 23;                   // #dock padding-left + border
     var PICK_COLS = 7, PICK_ROW_H = 250;
 
     var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, OK: 13, BACK: 10009, RED: 403,
@@ -26,7 +48,7 @@
 
     var dock = [];          // [{id, name, icon}]
     var focus = 0;          // index into dock; dock.length = the "+" tile
-    var mode = "dock";      // dock | picker | confirm | settings | places
+    var mode = "dock";      // dock | move | menu | picker | settings | choice
     var settings = {};
 
     // ---------- storage ----------
@@ -43,13 +65,18 @@
         if (!p) return "";
         return p.charAt(0) === "/" ? "file://" + p : p;
     }
+    function describe(a) {
+        return { id: a.id, name: SYSTEM_APPS[a.id] || a.name, icon: ICON_OVERRIDE[a.id] || iconUrl(a.iconPath) };
+    }
     function appInfo(id) {
-        try {
-            var a = tizen.application.getAppInfo(id);
-            return { id: a.id, name: a.name, icon: iconUrl(a.iconPath) };
-        } catch (e) {
-            return null;    // not installed (or no tizen API in a desktop browser)
-        }
+        try { return describe(tizen.application.getAppInfo(id)); }
+        catch (e) { return null; }    // not installed (or no tizen API in a desktop browser)
+    }
+    function isPickable(a) {
+        if (!a.show || a.id === SELF_ID) return false;
+        if (SYSTEM_APPS[a.id]) return true;
+        var m = /^([A-Za-z0-9]{10})\.(.+)$/.exec(a.id);
+        return !!m && !HIDDEN_PKG[m[1]] && !HIDDEN_SUFFIX.test(m[2]);
     }
 
     function tileEl(app) {
@@ -60,11 +87,22 @@
         fb.textContent = app.name;
         el.appendChild(fb);
         if (app.icon) {
-            var img = document.createElement("img");
-            img.onload = function () { fb.style.display = "none"; };
-            img.onerror = function () { el.removeChild(img); };
+            var img = new Image();
+            img.onload = function () {
+                var ratio = img.naturalWidth / img.naturalHeight;
+                if (Math.abs(ratio - 1) < 0.08) {
+                    img.className = "fill";
+                } else {
+                    var blur = document.createElement("div");
+                    blur.className = "blur";
+                    blur.style.backgroundImage = "url('" + app.icon + "')";
+                    el.appendChild(blur);
+                    img.className = "fit";
+                }
+                fb.style.display = "none";
+                el.appendChild(img);
+            };
             img.src = app.icon;
-            el.appendChild(img);
         }
         return el;
     }
@@ -97,24 +135,25 @@
         var tiles = $("strip").children;
         if (i < 0) i = 0;
         if (i > tiles.length - 1) i = tiles.length - 1;
-        for (var k = 0; k < tiles.length; k++) tiles[k].className = tiles[k].className.replace(" focus", "");
-        focus = i;
-        var tile = tiles[i];
-        tile.className += " focus";
-
-        // Keep the focused tile in view when the dock is wider than the screen.
-        var strip = $("strip"), dockEl = $("dock");
-        var view = dockEl.clientWidth - 44;
-        var center = tile.offsetLeft - strip.offsetLeft + tile.offsetWidth / 2;
-        var shift = 0;
-        if (strip.scrollWidth > view) {
-            shift = Math.max(0, Math.min(center - view / 2, strip.scrollWidth - view));
+        for (var k = 0; k < tiles.length; k++) {
+            tiles[k].className = tiles[k].className.replace(/ (focus|moving)/g, "");
         }
-        strip.style.transform = "translateX(" + (-shift) + "px)";
+        focus = i;
+        tiles[i].className += " focus" + (mode === "move" ? " moving" : "");
+
+        // Positions come from the fixed tile spacing rather than offsetLeft,
+        // which on this engine is measured from the transformed strip.
+        var dockEl = $("dock");
+        var view = dockEl.clientWidth - 44;
+        var total = tiles.length * TILE_STEP;
+        var center = i * TILE_STEP + (TILE_STEP - TILE) / 2 + TILE / 2;
+        var shift = total > view ? Math.max(0, Math.min(center - view / 2, total - view)) : 0;
+        $("strip").style.transform = "translateX(" + (-shift) + "px)";
 
         var label = $("label");
-        label.textContent = i === dock.length ? t.t("addShortcut") : dock[i].name;
-        label.style.left = (strip.offsetLeft + center - shift) + "px";
+        var name = i === dock.length ? t.t("addShortcut") : dock[i].name;
+        label.textContent = mode === "move" ? "◀  " + name + "  ▶" : name;
+        label.style.left = (dockEl.offsetLeft + DOCK_INSET + center - shift) + "px";
     }
 
     function launch(app) {
@@ -126,7 +165,61 @@
         }
     }
 
-    // ---------- picker ----------
+    // ---------- hold-OK menu: move / remove ----------
+    var MENU = ["move", "remove", "cancel"];
+    var menuFocus = 0;
+
+    function openMenu() {
+        if (focus >= dock.length) return;
+        mode = "menu";
+        $("menuTitle").textContent = dock[focus].name;
+        var list = $("menuList");
+        list.innerHTML = "";
+        for (var i = 0; i < MENU.length; i++) {
+            var row = document.createElement("div");
+            row.className = "opt";
+            row.textContent = t.t(MENU[i]);
+            list.appendChild(row);
+        }
+        $("menu").className = "overlay on";
+        setMenuFocus(0);
+    }
+    function setMenuFocus(i) {
+        var rows = $("menuList").children;
+        menuFocus = Math.max(0, Math.min(rows.length - 1, i));
+        for (var k = 0; k < rows.length; k++) rows[k].className = "opt" + (k === menuFocus ? " focus" : "");
+    }
+    function menuChosen() {
+        var action = MENU[menuFocus];
+        closeOverlay();
+        if (action === "move") {
+            mode = "move";
+            setFocus(focus);
+            toast(t.t("moveHint"));
+        } else if (action === "remove") {
+            var gone = dock.splice(focus, 1)[0];
+            saveDock();
+            renderDock();
+            toast(t.t("removed", gone.name));
+        }
+    }
+
+    function moveBy(d) {
+        var j = focus + d;
+        if (j < 0 || j >= dock.length) return;
+        var a = dock[focus];
+        dock[focus] = dock[j];
+        dock[j] = a;
+        focus = j;
+        saveDock();
+        renderDock();
+    }
+    function endMove() {
+        mode = "dock";
+        setFocus(focus);
+    }
+
+    // ---------- app picker ----------
     var picks = [], pickFocus = 0;
 
     function openPicker() {
@@ -137,9 +230,7 @@
         picks = [];
         var done = function (list) {
             for (var i = 0; i < list.length; i++) {
-                var a = list[i];
-                if (!a.show || a.id === SELF_ID) continue;
-                picks.push({ id: a.id, name: a.name, icon: iconUrl(a.iconPath) });
+                if (isPickable(list[i])) picks.push(describe(list[i]));
             }
             picks.sort(function (x, y) { return x.name.toLowerCase() < y.name.toLowerCase() ? -1 : 1; });
             for (var j = 0; j < picks.length; j++) {
@@ -152,6 +243,7 @@
                 wrap.appendChild(nm);
                 grid.appendChild(wrap);
             }
+            pickFocus = 0;
             setPickFocus(0);
         };
         try { tizen.application.getAppsInfo(done, function () { done([]); }); }
@@ -189,38 +281,95 @@
         setFocus(dock.length - 1);
     }
 
-    // ---------- remove confirmation ----------
-    var confirmFocus = 0;
+    // ---------- generic list picker ----------
+    var choice = null, choiceFocus = 0;
 
-    function openConfirm() {
-        if (focus >= dock.length) return;
-        mode = "confirm";
-        $("confirmText").textContent = t.t("removeQ", dock[focus].name);
-        $("confirm").className = "overlay on";
-        setConfirmFocus(0);
-    }
-    function setConfirmFocus(i) {
-        confirmFocus = i;
-        $("btnRemove").className = "btn" + (i === 0 ? " focus" : "");
-        $("btnCancel").className = "btn" + (i === 1 ? " focus" : "");
-    }
-    function confirmChosen() {
-        if (confirmFocus === 0) {
-            var gone = dock.splice(focus, 1)[0];
-            saveDock();
-            toast(t.t("removed", gone.name));
+    // items: [{label, value}]; onBack runs on the Back key.
+    function openChoice(title, items, cols, onPick, onBack) {
+        $("settings").className = "overlay";
+        mode = "choice";
+        choice = { items: items, cols: cols, onPick: onPick, onBack: onBack };
+        $("choiceTitle").textContent = title;
+        var grid = $("choiceGrid");
+        grid.innerHTML = "";
+        var w = Math.floor(1660 / cols) - 16;
+        for (var i = 0; i < items.length; i++) {
+            var el = document.createElement("div");
+            el.className = "opt";
+            el.style.width = w + "px";
+            el.textContent = items[i].label;
+            grid.appendChild(el);
         }
-        closeOverlay();
-        renderDock();
+        $("choice").className = "overlay on";
+        choiceFocus = 0;
+        setChoiceFocus(0);
+    }
+    function setChoiceFocus(i) {
+        var els = $("choiceGrid").children;
+        if (!els.length) return;
+        i = Math.max(0, Math.min(els.length - 1, i));
+        if (els[choiceFocus]) els[choiceFocus].className = "opt";
+        choiceFocus = i;
+        els[i].className = "opt focus";
+        var rowH = els[0].offsetHeight + 14;
+        var row = Math.floor(i / choice.cols);
+        $("choiceGrid").style.transform = "translateY(" + (-Math.max(0, row - 4) * rowH) + "px)";
+    }
+
+    // ---------- weather location ----------
+    function useLocation(city, place) {
+        settings.city = city;
+        settings.loc = { name: place.name, lat: place.lat, lon: place.lon };
+        save(SETTINGS_KEY, settings);
+        Weather.start(settings, noLocation);
+        toast(t.t("locationSet", place.name));
+    }
+    function sortLabels(a, b) { return a.label.localeCompare(b.label, t.locale); }
+
+    function chooseCountry() {
+        var P = window.PLACES || {};
+        var items = ["DE", "AT", "CH"].filter(function (c) { return P[c]; })
+            .map(function (c) { return { label: t.t("country_" + c), value: c }; });
+        openChoice(t.t("chooseCountry"), items, 3, function (it) { chooseState(it.value); }, openSettings);
+    }
+    function chooseState(cc) {
+        var items = Object.keys(window.PLACES[cc]).map(function (s) { return { label: s, value: s }; }).sort(sortLabels);
+        openChoice(t.t("country_" + cc) + "  ›  " + t.t("chooseState"), items, 4,
+            function (it) { chooseLetter(cc, it.value); }, chooseCountry);
+    }
+    function chooseLetter(cc, st) {
+        var list = window.PLACES[cc][st];
+        if (list.length <= 48) { chooseTown(cc, st, null); return; }
+        var seen = {}, items = [];
+        for (var i = 0; i < list.length; i++) {
+            var c = list[i][0].charAt(0).toUpperCase();
+            if (!seen[c]) { seen[c] = true; items.push({ label: c, value: c }); }
+        }
+        items.sort(sortLabels);
+        openChoice(st + "  ›  " + t.t("chooseLetter"), items, 9,
+            function (it) { chooseTown(cc, st, it.value); }, function () { chooseState(cc); });
+    }
+    function chooseTown(cc, st, letter) {
+        var items = window.PLACES[cc][st]
+            .filter(function (p) { return !letter || p[0].charAt(0).toUpperCase() === letter; })
+            .map(function (p) { return { label: p[0], value: p }; });
+        openChoice(st + (letter ? "  ›  " + letter : "") + "  ›  " + t.t("chooseTown"), items, 4,
+            function (it) {
+                closeOverlay();
+                useLocation(it.value[0], { name: it.value[0], lat: it.value[1], lon: it.value[2] });
+            },
+            function () { if (letter) chooseLetter(cc, st); else chooseState(cc); });
     }
 
     // ---------- settings ----------
-    var SET_ITEMS = ["setCity", "setName", "btnSave", "btnClose"];
+    var SET_ITEMS = ["btnLoc", "setCity", "setName", "btnSave", "btnClose"];
     var setFocusIdx = 0;
 
     function openSettings() {
+        $("choice").className = "overlay";
         mode = "settings";
-        $("setCity").value = settings.city || "";
+        $("btnLoc").textContent = (settings.loc ? settings.loc.name : t.t("locationNone")) + "  ›";
+        $("setCity").value = "";
         $("setName").value = settings.name || "";
         $("settings").className = "overlay on";
         focusSetting(0);
@@ -229,79 +378,41 @@
         setFocusIdx = i;
         for (var k = 0; k < SET_ITEMS.length; k++) {
             var el = $(SET_ITEMS[k]);
-            var base = el.tagName === "INPUT" ? "" : "btn";
-            el.className = base + (k === i ? (base ? " focus" : "focus") : "");
+            var base = el.getAttribute("data-base") || (el.tagName === "INPUT" ? "" : "btn");
+            el.className = (base + (k === i ? " focus" : "")).replace(/^\s+/, "");
         }
     }
     function settingsChosen() {
         var id = SET_ITEMS[setFocusIdx];
+        if (id === "btnLoc") { chooseCountry(); return; }
         if (id === "setCity" || id === "setName") { $(id).focus(); return; }   // opens the TV keyboard
         if (id === "btnClose") { closeOverlay(); return; }
 
-        var city = $("setCity").value.replace(/^\s+|\s+$/g, "");
         settings.name = $("setName").value.replace(/^\s+|\s+$/g, "");
+        save(SETTINGS_KEY, settings);
         applyName();
-        if (city && (city !== settings.city || !settings.loc)) {
-            Weather.geocode(city, function (list) {
-                if (list.length === 1) useLocation(city, list[0]);
-                else openPlaces(city, list);
-            }, function () { toast(t.t("locNotFound", city)); });
-        } else if (!city) {
-            settings.city = "";
-            settings.loc = null;
-            Weather.start(settings, noLocation);
-        }
-        save(SETTINGS_KEY, settings);
         closeOverlay();
-    }
-    function useLocation(city, place) {
-        settings.city = city;
-        settings.loc = { name: place.name, lat: place.lat, lon: place.lon };
-        save(SETTINGS_KEY, settings);
-        Weather.start(settings, noLocation);
-    }
 
-    // ---------- location matches ----------
-    var places = [], placeCity = "", placeFocus = 0;
-
-    function openPlaces(city, list) {
-        mode = "places";
-        places = list;
-        placeCity = city;
-        var box = $("placeList");
-        box.innerHTML = "";
-        for (var i = 0; i < list.length; i++) {
-            var row = document.createElement("div");
-            row.className = "place";
-            row.textContent = list[i].label;
-            box.appendChild(row);
-        }
-        $("places").className = "overlay on";
-        setPlaceFocus(0);
+        var city = $("setCity").value.replace(/^\s+|\s+$/g, "");
+        if (!city) return;
+        Weather.geocode(city, function (list) {
+            if (list.length === 1) { useLocation(city, list[0]); return; }
+            var items = list.map(function (p) { return { label: p.label, value: p }; });
+            openChoice(t.t("chooseLocation"), items, 1, function (it) {
+                closeOverlay();
+                useLocation(city, it.value);
+            }, closeOverlay);
+        }, function () { toast(t.t("locNotFound", city)); });
     }
-    function setPlaceFocus(i) {
-        var rows = $("placeList").children;
-        if (i < 0) i = 0;
-        if (i > rows.length - 1) i = rows.length - 1;
-        placeFocus = i;
-        for (var k = 0; k < rows.length; k++) rows[k].className = "place" + (k === i ? " focus" : "");
-    }
-    function placeChosen() {
-        var p = places[placeFocus];
-        closeOverlay();
-        if (p) useLocation(placeCity, p);
-    }
-
     function applyName() { $("brandName").textContent = settings.name || "HomeDock"; }
     function noLocation() { $("now").textContent = t.t("noLocation"); }
 
     function closeOverlay() {
         mode = "dock";
-        $("picker").className = "overlay";
-        $("confirm").className = "overlay";
-        $("settings").className = "overlay";
-        $("places").className = "overlay";
+        var ids = ["picker", "menu", "settings", "choice"];
+        for (var i = 0; i < ids.length; i++) $(ids[i]).className = "overlay";
         if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+        setFocus(focus);
     }
 
     // ---------- toast / clock / wallpapers ----------
@@ -311,7 +422,7 @@
         el.textContent = msg;
         el.className = "on";
         clearTimeout(toastTimer);
-        toastTimer = setTimeout(function () { el.className = ""; }, 2500);
+        toastTimer = setTimeout(function () { el.className = ""; }, 3000);
     }
 
     function tick() {
@@ -332,8 +443,6 @@
         var img = new Image();
         img.onload = function () {
             next.style.backgroundImage = "url('assets/wallpapers/" + w.file + "')";
-            next.className = "bg";
-            void next.offsetWidth;          // restart the slow zoom
             next.className = "bg show";
             cur.className = "bg";
             layer = 1 - layer;
@@ -349,7 +458,7 @@
     }
 
     // ---------- keys ----------
-    // OK acts on key *up*, so holding it can become a long press (remove)
+    // OK acts on key *up*, so holding it can become a long press (menu)
     // without the release then also launching the app.
     var okHeld = false, okLong = false, okTimer = null;
 
@@ -370,7 +479,7 @@
             okHeld = true;
             okLong = false;
             if (mode === "dock" && focus < dock.length) {
-                okTimer = setTimeout(function () { okLong = true; openConfirm(); }, LONG_PRESS_MS);
+                okTimer = setTimeout(function () { okLong = true; openMenu(); }, LONG_PRESS_MS);
             }
             return;
         }
@@ -382,6 +491,16 @@
             else if (k === KEY.RED) openSettings();
             else if (k === KEY.BACK) { try { tizen.application.getCurrentApplication().hide(); } catch (x) {} }
             else handled = false;
+        } else if (mode === "move") {
+            if (k === KEY.LEFT) moveBy(-1);
+            else if (k === KEY.RIGHT) moveBy(1);
+            else if (k === KEY.BACK) endMove();
+            else handled = false;
+        } else if (mode === "menu") {
+            if (k === KEY.UP) setMenuFocus(menuFocus - 1);
+            else if (k === KEY.DOWN) setMenuFocus(menuFocus + 1);
+            else if (k === KEY.BACK) closeOverlay();
+            else handled = false;
         } else if (mode === "picker") {
             if (k === KEY.LEFT) setPickFocus(pickFocus - 1);
             else if (k === KEY.RIGHT) setPickFocus(pickFocus + 1);
@@ -389,22 +508,19 @@
             else if (k === KEY.DOWN) setPickFocus(pickFocus + PICK_COLS);
             else if (k === KEY.BACK) closeOverlay();
             else handled = false;
-        } else if (mode === "confirm") {
-            if (k === KEY.LEFT) setConfirmFocus(0);
-            else if (k === KEY.RIGHT) setConfirmFocus(1);
-            else if (k === KEY.BACK) closeOverlay();
-            else handled = false;
         } else if (mode === "settings") {
-            if (k === KEY.UP) focusSetting(setFocusIdx <= 2 ? Math.max(0, setFocusIdx - 1) : 1);
-            else if (k === KEY.DOWN) focusSetting(Math.min(2, setFocusIdx + 1));
-            else if (k === KEY.LEFT && setFocusIdx === 3) focusSetting(2);
-            else if (k === KEY.RIGHT && setFocusIdx === 2) focusSetting(3);
+            if (k === KEY.UP) focusSetting(setFocusIdx >= 3 ? 2 : Math.max(0, setFocusIdx - 1));
+            else if (k === KEY.DOWN) focusSetting(setFocusIdx >= 3 ? setFocusIdx : setFocusIdx + 1);
+            else if (k === KEY.LEFT && setFocusIdx === 4) focusSetting(3);
+            else if (k === KEY.RIGHT && setFocusIdx === 3) focusSetting(4);
             else if (k === KEY.BACK) closeOverlay();
             else handled = false;
-        } else if (mode === "places") {
-            if (k === KEY.UP) setPlaceFocus(placeFocus - 1);
-            else if (k === KEY.DOWN) setPlaceFocus(placeFocus + 1);
-            else if (k === KEY.BACK) closeOverlay();
+        } else if (mode === "choice") {
+            if (k === KEY.LEFT) setChoiceFocus(choiceFocus - 1);
+            else if (k === KEY.RIGHT) setChoiceFocus(choiceFocus + 1);
+            else if (k === KEY.UP) setChoiceFocus(choiceFocus - choice.cols);
+            else if (k === KEY.DOWN) setChoiceFocus(choiceFocus + choice.cols);
+            else if (k === KEY.BACK) choice.onBack();
             else handled = false;
         }
         if (handled) e.preventDefault();
@@ -418,10 +534,11 @@
         if (mode === "dock") {
             if (focus === dock.length) openPicker();
             else launch(dock[focus]);
-        } else if (mode === "picker") pickChosen();
-        else if (mode === "confirm") confirmChosen();
+        } else if (mode === "move") endMove();
+        else if (mode === "menu") menuChosen();
+        else if (mode === "picker") pickChosen();
         else if (mode === "settings") settingsChosen();
-        else if (mode === "places") placeChosen();
+        else if (mode === "choice") choice.onPick(choice.items[choiceFocus]);
     }
 
     // ---------- start ----------
