@@ -17,15 +17,15 @@ Tested target: Tizen 5.0 (2019 models). The code is ES5 and avoids CSS newer tha
 | Left / Right | Move through the dock or the sources row |
 | OK | Open the app, or open the app picker on **+** |
 | Hold OK | On an app: **Move** / **Remove**. On a source: **Rename** / **Hide** |
-| Red | Settings: show/hide clock, weather and name; wallpaper mode; weather location; TV name |
+| Red | Settings (grouped): name/clock, current weather + 7-day forecast separately, wallpaper, photo credit, sources |
 | Back | Leave HomeDock |
 
 The weather location is picked from a list (country, state, district, first letter, place)
 covering 26 countries, every German village included, or found by typing a name. The list
 reopens at the last pick; Back steps up a level.
 
-The wallpaper can rotate through the bundled photos, show one chosen photo, or be a plain
-light or dark background that never changes.
+The wallpaper can rotate through the bundled photos, show one chosen photo, or be one of
+several plain colour backgrounds (light, mist, sand, dark, dusk, ocean) that never change.
 
 When the TV reports HDMI inputs, a sources row appears under the dock; OK switches to an
 input. Hidden sources can be brought back from Settings.

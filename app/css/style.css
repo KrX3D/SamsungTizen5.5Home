@@ -310,3 +310,13 @@ body.light .glass { background: rgba(255,255,255,0.55); border-color: rgba(0,0,0
 body.light #forecast { background: rgba(255,255,255,0.62); }
 body.light #forecast .foot, body.light #now .hl, body.light #date { opacity: 0.6; }
 body.light .tile.plus .in { background: rgba(0,0,0,0.10); }
+
+/* ---- Settings group headers ---- */
+.shead {
+    font-size: 22px; letter-spacing: 1.5px; text-transform: uppercase;
+    opacity: 0.45; margin: 30px 0 12px 10px;
+}
+#setList .shead:first-child { margin-top: 0; }
+
+/* White weather icons need an outline to be visible on a light wallpaper. */
+body.light #now svg, body.light #forecast svg { -webkit-filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.55)); filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.55)); }
