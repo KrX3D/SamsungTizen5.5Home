@@ -5,6 +5,7 @@
 
     var SELF_ID = "krx3dLnch1.Home";
     var SELF_PKG = "krx3dLnch1";        // our own package: .Home and the .Boot service
+    var ACCENT = "#ff5a4d";             // accent (second hand etc.); made configurable later
     var APPS_KEY = "homedock.apps";
     var SETTINGS_KEY = "homedock.settings";
     var DEFAULT_APPS = [
@@ -544,6 +545,13 @@
         rows.push({ k: "name", type: "toggle", label: t.t("showName"), on: s.name !== false });
         if (s.name !== false) rows.push({ k: "nameText", type: "text", label: t.t("tvName"), val: settings.name || "" });
         rows.push({ k: "clock", type: "toggle", label: t.t("showClock"), on: s.clock !== false });
+        if (s.clock !== false) {
+            var analog = settings.clockStyle === "analog";
+            rows.push({ k: "clockStyle", type: "value", label: t.t("clockStyle"), val: t.t("clock_" + (analog ? "analog" : "digital")) });
+            if (!analog) rows.push({ k: "clockFormat", type: "value", label: t.t("clockFormat"), val: t.t("fmt_" + (settings.clockFormat || "auto")) });
+            rows.push({ k: "seconds", type: "toggle", label: t.t(analog ? "showSecondHand" : "showSeconds"), on: s.seconds === true });
+        }
+        rows.push({ k: "greeting", type: "toggle", label: t.t("showGreeting"), on: s.greeting === true });
 
         rows.push({ k: "hWeather", type: "header", label: t.t("grpWeather") });
         rows.push({ k: "now", type: "toggle", label: t.t("showNow"), on: s.now !== false });
@@ -637,6 +645,8 @@
         var s = show();
         if (r.k === "name") s.name = s.name === false;
         else if (r.k === "clock") s.clock = s.clock === false;
+        else if (r.k === "seconds") s.seconds = !s.seconds;
+        else if (r.k === "greeting") s.greeting = !s.greeting;
         else if (r.k === "now") s.now = s.now === false;
         else if (r.k === "details") s.details = s.details === false;
         else if (r.k === "hourly") s.hourly = s.hourly === false;
@@ -646,9 +656,23 @@
         else if (r.k === "sources") s.sources = s.sources === false;
         save(SETTINGS_KEY, settings);
         applyDisplay();
+        tick();
         if (r.k === "units") Weather.refresh(settings);
         renderSources();
         renderSettings();
+    }
+
+    function chooseClockStyle() {
+        var items = ["digital", "analog"].map(function (k) { return { label: t.t("clock_" + k), key: k }; });
+        openChoice(t.t("clockStyle"), items, 2, function (it) {
+            settings.clockStyle = it.key; save(SETTINGS_KEY, settings); tick(); openSettings();
+        }, openSettings, settings.clockStyle || "digital");
+    }
+    function chooseClockFormat() {
+        var items = ["auto", "24", "12"].map(function (k) { return { label: t.t("fmt_" + k), key: k }; });
+        openChoice(t.t("clockFormat"), items, 3, function (it) {
+            settings.clockFormat = it.key; save(SETTINGS_KEY, settings); tick(); openSettings();
+        }, openSettings, settings.clockFormat || "auto");
     }
 
     function onInputDone(key, value) {
@@ -691,6 +715,8 @@
         if (r.type === "toggle") { flip(r); return; }
         if (r.type === "text") { var inp = $("setList").children[setFocusIdx].querySelector("input"); if (inp) inp.focus(); return; }
         if (r.k === "loc") openLocation();
+        else if (r.k === "clockStyle") chooseClockStyle();
+        else if (r.k === "clockFormat") chooseClockFormat();
         else if (r.k === "wallMode") chooseWallMode();
         else if (r.k === "wallPick") chooseWallPhoto();
         else if (r.k === "srcReset") { srcCfg().hidden = {}; save(SETTINGS_KEY, settings); renderSources(); renderSettings(); }
@@ -732,15 +758,61 @@
         toastTimer = setTimeout(function () { el.className = ""; }, 3000);
     }
 
+    function pad2(n) { return (n < 10 ? "0" : "") + n; }
+    function use24() {
+        var f = settings.clockFormat || "auto";
+        if (f === "24") return true;
+        if (f === "12") return false;
+        return t.lang === "de";
+    }
+    function greetingText(h) {
+        if (h < 5) return t.t("greetNight");
+        if (h < 12) return t.t("greetMorning");
+        if (h < 18) return t.t("greetAfternoon");
+        return t.t("greetEvening");
+    }
+    function analogClock(h, m, s, seconds) {
+        var size = 188, c = size / 2, r = c - 6, i, a, x1, y1, x2, y2;
+        function hand(angle, len, w, col) {
+            var rad = (angle - 90) * Math.PI / 180;
+            return '<line x1="' + c + '" y1="' + c + '" x2="' + (c + len * Math.cos(rad)) + '" y2="' + (c + len * Math.sin(rad)) +
+                '" stroke="' + col + '" stroke-width="' + w + '" stroke-linecap="round"/>';
+        }
+        var ticks = "";
+        for (i = 0; i < 12; i++) {
+            a = (i * 30 - 90) * Math.PI / 180;
+            x1 = c + (r - 4) * Math.cos(a); y1 = c + (r - 4) * Math.sin(a);
+            x2 = c + (r - 13) * Math.cos(a); y2 = c + (r - 13) * Math.sin(a);
+            ticks += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="currentColor" stroke-width="' + (i % 3 === 0 ? 3 : 1.5) + '" opacity="0.7"/>';
+        }
+        return '<svg viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size + '">' +
+            '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="none" stroke="currentColor" stroke-width="2" opacity="0.45"/>' + ticks +
+            hand(((h % 12) + m / 60) * 30, r * 0.52, 6, "currentColor") +
+            hand(m * 6 + s * 0.1, r * 0.78, 4, "currentColor") +
+            (seconds ? hand(s * 6, r * 0.85, 2, ACCENT) : "") +
+            '<circle cx="' + c + '" cy="' + c + '" r="5" fill="currentColor"/></svg>';
+    }
+
     function tick() {
-        var d = new Date(), h = d.getHours(), m = d.getMinutes();
-        var mm = (m < 10 ? "0" : "") + m;
-        if (t.lang === "de") {
-            $("time").textContent = (h < 10 ? "0" : "") + h + ":" + mm;
+        var d = new Date(), h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
+        var seconds = show().seconds === true;
+        var timeEl = $("time");
+        if ((settings.clockStyle || "digital") === "analog") {
+            timeEl.className = "analog";
+            timeEl.innerHTML = analogClock(h, m, s, seconds);
         } else {
-            $("time").innerHTML = ((h % 12) || 12) + ":" + mm + "<small>" + (h < 12 ? "am" : "pm") + "</small>";
+            timeEl.className = "";
+            var head, ap = "";
+            if (use24()) head = pad2(h);
+            else { head = (h % 12) || 12; ap = '<small>' + (h < 12 ? "am" : "pm") + "</small>"; }
+            timeEl.innerHTML = head + ":" + pad2(m) + (seconds ? '<span class="sec">:' + pad2(s) + "</span>" : "") + ap;
         }
         $("date").textContent = d.toLocaleDateString(t.locale, { weekday: "long", day: "numeric", month: "long" });
+        var g = $("greeting");
+        if (g) {
+            if (show().greeting === true) { g.textContent = greetingText(h); g.style.display = ""; }
+            else g.style.display = "none";
+        }
     }
 
     var walls = window.WALLPAPERS || [], wallIdx = 0, layer = 0;
@@ -1035,7 +1107,7 @@
         loadDock();
         renderDock();
         tick();
-        setInterval(tick, 10000);
+        setInterval(tick, 1000);
         applyWallpaper();
         Weather.start(settings, noLocation);
         loadSources();
