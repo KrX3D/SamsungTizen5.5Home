@@ -33,11 +33,13 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Pinned rather than ubuntu-latest, which moves to Ubuntu 26: the Tizen
+    # Studio CLI installer is only known to work on this image.
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Set version
         run: |
@@ -52,7 +54,7 @@ jobs:
 
       - name: Restore the Tizen Studio installer from cache
         id: tizen_cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: tizen-installer
           key: tizen-installer-${{ env.TIZEN_STUDIO_VER }}-ubuntu-64
@@ -115,7 +117,7 @@ jobs:
         if: failure()
         run: cat "${HOME}/tizen-studio-data/cli/logs/cli.log" 2>/dev/null || echo "no cli.log"
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: HomeDock-${{ env.VERSION }}
           path: release/HomeDock.wgt
