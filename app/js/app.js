@@ -772,7 +772,7 @@
         return t.t("greetEvening");
     }
     function analogClock(h, m, s, seconds) {
-        var size = 188, c = size / 2, r = c - 6, i, a, x1, y1, x2, y2;
+        var size = 142, c = size / 2, r = c - 6, i, a, x1, y1, x2, y2;
         function hand(angle, len, w, col) {
             var rad = (angle - 90) * Math.PI / 180;
             return '<line x1="' + c + '" y1="' + c + '" x2="' + (c + len * Math.cos(rad)) + '" y2="' + (c + len * Math.sin(rad)) +
