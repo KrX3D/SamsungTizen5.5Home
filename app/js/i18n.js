@@ -60,6 +60,7 @@
             showSeconds: "Show seconds",
             showSecondHand: "Show second hand",
             showGreeting: "Show greeting",
+            language: "Language",
             recentOrder: "Recently used apps first",
             greetMorning: "Good morning",
             greetAfternoon: "Good afternoon",
@@ -160,6 +161,7 @@
             showSeconds: "Sekunden anzeigen",
             showSecondHand: "Sekundenzeiger anzeigen",
             showGreeting: "Begrüßung anzeigen",
+            language: "Sprache",
             recentOrder: "Zuletzt genutzte Apps zuerst",
             greetMorning: "Guten Morgen",
             greetAfternoon: "Guten Tag",
@@ -202,21 +204,88 @@
                 77: "Schneegriesel", 80: "Schauer", 81: "Schauer", 82: "Starke Schauer",
                 85: "Schneeschauer", 86: "Schneeschauer", 95: "Gewitter", 96: "Gewitter", 99: "Gewitter"
             }
+        },
+        // French and Spanish cover the visible strings; anything missing falls back to English.
+        fr: {
+            settings: "Réglages", close: "Fermer", save: "Enregistrer", cancel: "Annuler",
+            remove: "Retirer", move: "Déplacer", rename: "Renommer", hide: "Masquer",
+            addApp: "Ajouter une app", addShortcut: "Ajouter un raccourci", tabApps: "Apps", tabSystem: "Système",
+            grpGeneral: "Général", grpWeather: "Météo", grpWallpaper: "Fond d'écran", grpSources: "Sources", grpAppearance: "Apparence", grpBehaviour: "Comportement",
+            showName: "Afficher le nom (en haut à gauche)", tvName: "Nom affiché en haut à gauche", showClock: "Afficher l'horloge",
+            clockStyle: "Style d'horloge", clock_digital: "Numérique", clock_analog: "Analogique",
+            clockFormat: "Format de l'heure", fmt_auto: "Automatique", fmt_24: "24 heures", fmt_12: "12 heures",
+            showSeconds: "Afficher les secondes", showSecondHand: "Trotteuse", showGreeting: "Afficher le message",
+            greetMorning: "Bonjour", greetAfternoon: "Bon après-midi", greetEvening: "Bonsoir", greetNight: "Bonne nuit",
+            showNow: "Météo actuelle", showDetails: "Vent, humidité, lever/coucher", showHourly: "Barre horaire", showForecast: "Prévisions sur 7 jours",
+            useFahrenheit: "Utiliser Fahrenheit (°F)", location: "Lieu météo", orSearch: "Ou chercher par nom", tvNameShort: "Nom",
+            locationNone: "Non défini", chooseLocation: "Choisissez votre lieu", chooseCountry: "Pays", chooseState: "Région", chooseDistrict: "Département", chooseLetter: "Initiale", chooseTown: "Ville",
+            locNotFound: "Lieu « {0} » introuvable", locationSet: "Lieu météo : {0}", loadFailed: "Impossible de charger la liste", noLocation: "Appuyez sur la touche rouge pour définir le lieu", weatherCredit: "Météo : Open-Meteo", hi: "H", lo: "B",
+            wallpaper: "Fond d'écran", wallpaperPhoto: "Choisir une photo", wall_rotate: "Photos qui changent", wall_single: "Photo unique", wall_light: "Clair uni", wall_mist: "Brume unie", wall_sand: "Sable uni", wall_dark: "Sombre uni", wall_dusk: "Crépuscule uni", wall_ocean: "Océan uni", showCredit: "Afficher le crédit photo",
+            showSources: "Afficher la rangée des sources", resetSources: "Afficher les sources masquées",
+            accent: "Couleur d'accent", focusColor: "Couleur de sélection", font: "Police", font_default: "Par défaut", font_modern: "Moderne", font_classic: "Classique", font_rounded: "Arrondie", font_mono: "Monospace",
+            tileShape: "Forme des tuiles", shape_rounded: "Arrondies", shape_square: "Carrées", tileSize: "Taille des tuiles", wallDim: "Assombrir le fond",
+            whatsNew: "Nouveautés", gotIt: "Compris",
+            opening: "Ouverture de {0}…", notAvailable: "{0} n'est pas disponible", added: "{0} ajouté", removed: "{0} retiré",
+            wc: {
+                0: "Dégagé", 1: "Plutôt dégagé", 2: "Partiellement nuageux", 3: "Couvert",
+                45: "Brouillard", 48: "Brouillard", 51: "Bruine légère", 53: "Bruine", 55: "Bruine",
+                56: "Bruine verglas", 57: "Bruine verglas", 61: "Pluie légère", 63: "Pluie", 65: "Forte pluie",
+                66: "Pluie verglaçante", 67: "Pluie verglaçante", 71: "Neige légère", 73: "Neige", 75: "Forte neige",
+                77: "Grains de neige", 80: "Averses", 81: "Averses", 82: "Fortes averses",
+                85: "Averses de neige", 86: "Averses de neige", 95: "Orage", 96: "Orage", 99: "Orage"
+            }
+        },
+        es: {
+            settings: "Ajustes", close: "Cerrar", save: "Guardar", cancel: "Cancelar",
+            remove: "Quitar", move: "Mover", rename: "Renombrar", hide: "Ocultar",
+            addApp: "Añadir app", addShortcut: "Añadir acceso", tabApps: "Apps", tabSystem: "Sistema",
+            grpGeneral: "General", grpWeather: "Tiempo", grpWallpaper: "Fondo", grpSources: "Fuentes", grpAppearance: "Apariencia", grpBehaviour: "Comportamiento",
+            showName: "Mostrar nombre (arriba izq.)", tvName: "Nombre arriba a la izquierda", showClock: "Mostrar reloj",
+            clockStyle: "Estilo de reloj", clock_digital: "Digital", clock_analog: "Analógico",
+            clockFormat: "Formato de hora", fmt_auto: "Automático", fmt_24: "24 horas", fmt_12: "12 horas",
+            showSeconds: "Mostrar segundos", showSecondHand: "Segundero", showGreeting: "Mostrar saludo",
+            greetMorning: "Buenos días", greetAfternoon: "Buenas tardes", greetEvening: "Buenas noches", greetNight: "Buenas noches",
+            showNow: "Tiempo actual", showDetails: "Viento, humedad, orto/ocaso", showHourly: "Barra horaria", showForecast: "Pronóstico de 7 días",
+            useFahrenheit: "Usar Fahrenheit (°F)", location: "Ubicación del tiempo", orSearch: "O buscar por nombre",
+            locationNone: "Sin definir", chooseLocation: "Elige tu ubicación", chooseCountry: "País", chooseState: "Región", chooseDistrict: "Provincia", chooseLetter: "Inicial", chooseTown: "Localidad",
+            locNotFound: "Ubicación « {0} » no encontrada", locationSet: "Ubicación: {0}", loadFailed: "No se pudo cargar la lista", noLocation: "Pulsa el botón rojo para fijar la ubicación", weatherCredit: "Tiempo: Open-Meteo", hi: "M", lo: "m",
+            wallpaper: "Fondo", wallpaperPhoto: "Elegir foto", wall_rotate: "Fotos que cambian", wall_single: "Foto única", wall_light: "Claro liso", wall_mist: "Niebla lisa", wall_sand: "Arena lisa", wall_dark: "Oscuro liso", wall_dusk: "Ocaso liso", wall_ocean: "Océano liso", showCredit: "Mostrar crédito de foto",
+            showSources: "Mostrar fila de fuentes", resetSources: "Mostrar fuentes ocultas",
+            accent: "Color de acento", focusColor: "Color de selección", font: "Fuente", font_default: "Predeterminada", font_modern: "Moderna", font_classic: "Clásica", font_rounded: "Redondeada", font_mono: "Monoespaciada",
+            tileShape: "Forma de iconos", shape_rounded: "Redondeados", shape_square: "Cuadrados", tileSize: "Tamaño de iconos", wallDim: "Oscurecer fondo",
+            whatsNew: "Novedades", gotIt: "Entendido",
+            opening: "Abriendo {0}…", notAvailable: "{0} no está disponible", added: "{0} añadido", removed: "{0} quitado",
+            wc: {
+                0: "Despejado", 1: "Mayormente despejado", 2: "Parcialmente nublado", 3: "Nublado",
+                45: "Niebla", 48: "Niebla", 51: "Llovizna ligera", 53: "Llovizna", 55: "Llovizna",
+                56: "Llovizna helada", 57: "Llovizna helada", 61: "Lluvia ligera", 63: "Lluvia", 65: "Lluvia fuerte",
+                66: "Lluvia helada", 67: "Lluvia helada", 71: "Nieve ligera", 73: "Nieve", 75: "Nieve fuerte",
+                77: "Granos de nieve", 80: "Chubascos", 81: "Chubascos", 82: "Chubascos fuertes",
+                85: "Chubascos de nieve", 86: "Chubascos de nieve", 95: "Tormenta", 96: "Tormenta", 99: "Tormenta"
+            }
         }
     };
 
-    var lang = (navigator.language || "en").slice(0, 2).toLowerCase();
+    // Language names for the picker (self-named).
+    var LANGS = { en: "English", de: "Deutsch", fr: "Français", es: "Español" };
+    var LOCALES = { en: "en-GB", de: "de-DE", fr: "fr-FR", es: "es-ES" };
+
+    // A language saved in settings overrides the TV's language.
+    var override = null;
+    try { override = (JSON.parse(localStorage.getItem("homedock.settings") || "{}") || {}).lang; } catch (e) {}
+    var lang = (override || navigator.language || "en").slice(0, 2).toLowerCase();
     if (!STRINGS[lang]) lang = "en";
 
     window.I18N = {
         lang: lang,
-        locale: lang === "de" ? "de-DE" : "en-GB",
+        locale: LOCALES[lang] || "en-GB",
+        languages: LANGS,
         t: function (key, arg) {
             var s = STRINGS[lang][key] || STRINGS.en[key] || key;
             return arg === undefined ? s : String(s).replace("{0}", arg);
         },
         weather: function (code) {
-            return STRINGS[lang].wc[code] || STRINGS.en.wc[code] || "";
+            return (STRINGS[lang].wc && STRINGS[lang].wc[code]) || STRINGS.en.wc[code] || "";
         },
         apply: function () {
             var els = document.querySelectorAll("[data-i18n]");
