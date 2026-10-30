@@ -208,6 +208,17 @@
         } catch (e) {
             toast(t.t("notAvailable", app.name));
         }
+        // Recently-used ordering: move the launched app to the front of the dock.
+        if (settings.recentOrder) {
+            for (var i = 0; i < dock.length; i++) {
+                if (dock[i].id === app.id) {
+                    if (i > 0) { dock.unshift(dock.splice(i, 1)[0]); saveDock(); }
+                    break;
+                }
+            }
+            focus = 0;
+            renderDock();
+        }
     }
 
     // ---------- hold-OK menu: move / remove ----------
@@ -552,6 +563,7 @@
             rows.push({ k: "seconds", type: "toggle", label: t.t(analog ? "showSecondHand" : "showSeconds"), on: s.seconds === true });
         }
         rows.push({ k: "greeting", type: "toggle", label: t.t("showGreeting"), on: s.greeting === true });
+        rows.push({ k: "recentOrder", type: "toggle", label: t.t("recentOrder"), on: settings.recentOrder === true });
 
         rows.push({ k: "hWeather", type: "header", label: t.t("grpWeather") });
         rows.push({ k: "now", type: "toggle", label: t.t("showNow"), on: s.now !== false });
@@ -647,6 +659,7 @@
         else if (r.k === "clock") s.clock = s.clock === false;
         else if (r.k === "seconds") s.seconds = !s.seconds;
         else if (r.k === "greeting") s.greeting = !s.greeting;
+        else if (r.k === "recentOrder") settings.recentOrder = !settings.recentOrder;
         else if (r.k === "now") s.now = s.now === false;
         else if (r.k === "details") s.details = s.details === false;
         else if (r.k === "hourly") s.hourly = s.hourly === false;
