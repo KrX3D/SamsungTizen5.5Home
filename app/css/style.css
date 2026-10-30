@@ -372,3 +372,9 @@ body.light #hourly { background: rgba(255,255,255,0.62); }
 #wnList { margin: 8px 0 8px; }
 .wnItem { font-size: 27px; font-weight: 300; margin: 14px 0; padding-left: 36px; position: relative; }
 .wnItem:before { content: "\2022"; position: absolute; left: 6px; color: var(--accent, #ff5a4d); }
+/* ---- Photo-frame screensaver ---- */
+#saver { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; }
+#saver.on { display: block; }
+#saver .sbg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; opacity: 0; transition: opacity 2.5s ease-in-out; }
+#saver .sbg.show { opacity: 1; }
+#svClock { position: absolute; right: 70px; bottom: 56px; font-size: 96px; font-weight: 200; color: #fff; text-shadow: 0 2px 24px rgba(0,0,0,0.7); }
