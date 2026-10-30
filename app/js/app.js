@@ -210,8 +210,19 @@
         label.style.left = (dockEl.offsetLeft + DOCK_INSET + center - shift) + "px";
     }
 
+    // Tell the boot service (loopback) what we're doing, for the Home watcher.
+    function svcPost(path, body) {
+        try {
+            var x = new XMLHttpRequest();
+            x.open("POST", "http://127.0.0.1:47800" + path, true);
+            x.setRequestHeader("Content-Type", "application/json");
+            x.send(JSON.stringify(body || {}));
+        } catch (e) {}
+    }
+
     function launch(app) {
         toast(t.t("opening", app.name));
+        svcPost("/watch", { id: app.id });    // watcher stands aside while we use this app
         try {
             tizen.application.launch(app.id, function () {}, function () { toast(t.t("notAvailable", app.name)); });
         } catch (e) {
@@ -608,6 +619,7 @@
         rows.push({ k: "hBehaviour", type: "header", label: t.t("grpBehaviour") });
         rows.push({ k: "saver", type: "toggle", label: t.t("screensaver"), on: sv.enabled === true });
         if (sv.enabled === true) rows.push({ k: "saverMin", type: "value", label: t.t("screensaverIdle"), val: (sv.minutes || 5) + " min" });
+        rows.push({ k: "homeWatcher", type: "toggle", label: t.t("homeWatcher"), on: settings.homeWatcher === true });
 
         var a = appr();
         rows.push({ k: "hLook", type: "header", label: t.t("grpAppearance") });
@@ -708,6 +720,7 @@
         else if (r.k === "saver") (settings.screensaver || (settings.screensaver = {})).enabled = !(settings.screensaver && settings.screensaver.enabled === true);
         else if (r.k === "srcHide") settings.srcHideDisconnected = !settings.srcHideDisconnected;
         else if (r.k === "srcAuto") settings.srcAutoSwitch = !settings.srcAutoSwitch;
+        else if (r.k === "homeWatcher") { settings.homeWatcher = !settings.homeWatcher; svcPost("/config", { enabled: settings.homeWatcher === true }); }
         save(SETTINGS_KEY, settings);
         if (r.k === "saver") Screensaver.start(settings);
         if (r.k === "srcAuto") startSrcWatch();
@@ -1317,6 +1330,8 @@
         Weather.start(settings, noLocation);
         loadSources();
         Screensaver.start(settings);
+        svcPost("/config", { enabled: settings.homeWatcher === true });
+        svcPost("/home", {});
         var ri = $("renameInput");
         if (ri) ri.onblur = function () { if (mode === "rename") renameDone(); };
         document.addEventListener("keydown", onKeyDown);

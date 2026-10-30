@@ -27,6 +27,7 @@
     <!-- Let the TV warm the app in the background at power-on so it opens fast. -->
     <tizen:metadata key="http://samsung.com/tv/metadata/prelaunch.support" value="true"/>
     <access origin="https://open-meteo.com" subdomains="true"/>
+    <access origin="http://127.0.0.1:47800" subdomains="false"/>
     <tizen:privilege name="http://tizen.org/privilege/internet"/>
     <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
     <tizen:privilege name="http://tizen.org/privilege/application.info"/>
