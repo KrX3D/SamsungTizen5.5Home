@@ -364,3 +364,8 @@ body.light #hourly { background: rgba(255,255,255,0.62); }
 .opt.swatchopt .swatch.big { width: 74px; height: 74px; vertical-align: middle; }
 .opt.swatchopt.focus { background: none; box-shadow: none; }
 .opt.swatchopt.focus .swatch.big { box-shadow: 0 0 0 4px #fff, inset 0 0 0 1px rgba(255,255,255,0.3); }
+
+/* ---- What's new ---- */
+#wnList { margin: 8px 0 8px; }
+.wnItem { font-size: 27px; font-weight: 300; margin: 14px 0; padding-left: 36px; position: relative; }
+.wnItem:before { content: "\2022"; position: absolute; left: 6px; color: var(--accent, #ff5a4d); }
