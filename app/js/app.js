@@ -599,6 +599,8 @@
         if (srcList.length) {
             rows.push({ k: "hSources", type: "header", label: t.t("grpSources") });
             rows.push({ k: "sources", type: "toggle", label: t.t("showSources"), on: s.sources !== false });
+            rows.push({ k: "srcHide", type: "toggle", label: t.t("hideDisconnected"), on: settings.srcHideDisconnected === true });
+            rows.push({ k: "srcAuto", type: "toggle", label: t.t("autoSwitch"), on: settings.srcAutoSwitch === true });
             if (hasHiddenSources()) rows.push({ k: "srcReset", type: "action", label: t.t("resetSources") });
         }
 
@@ -704,8 +706,12 @@
         else if (r.k === "credit") s.credit = s.credit === false;
         else if (r.k === "sources") s.sources = s.sources === false;
         else if (r.k === "saver") (settings.screensaver || (settings.screensaver = {})).enabled = !(settings.screensaver && settings.screensaver.enabled === true);
+        else if (r.k === "srcHide") settings.srcHideDisconnected = !settings.srcHideDisconnected;
+        else if (r.k === "srcAuto") settings.srcAutoSwitch = !settings.srcAutoSwitch;
         save(SETTINGS_KEY, settings);
         if (r.k === "saver") Screensaver.start(settings);
+        if (r.k === "srcAuto") startSrcWatch();
+        if (r.k === "srcHide") renderSources();
         applyDisplay();
         if (r.k === "seconds") scheduleTick(); else tick();
         if (r.k === "units") Weather.refresh(settings);
@@ -1003,11 +1009,20 @@
 
     function srcCfg() { var c = settings.sources || (settings.sources = {}); c.hidden = c.hidden || {}; c.names = c.names || {}; return c; }
     function srcKey(s) { return s.type + s.number; }
-    function srcName(s) { return srcCfg().names[srcKey(s)] || (s.type + " " + s.number); }
+    function srcName(s) {
+        var custom = srcCfg().names[srcKey(s)];
+        if (custom) return custom;
+        if (s.type === "TV") return t.t("liveTV");
+        return s.device || (s.type + " " + s.number);   // CEC device name if the TV gives one
+    }
     function visibleSources() {
         if (show().sources === false) return [];
-        var h = srcCfg().hidden;
-        return srcList.filter(function (s) { return !h[srcKey(s)]; });
+        var h = srcCfg().hidden, hideOff = settings.srcHideDisconnected === true;
+        return srcList.filter(function (s) {
+            if (h[srcKey(s)]) return false;
+            if (hideOff && s.type === "HDMI" && !s.connected) return false;
+            return true;
+        });
     }
     function hasHiddenSources() {
         var h = srcCfg().hidden;
@@ -1018,15 +1033,24 @@
     function loadSources() {
         if (!window.Sources) return;
         Sources.list(function (all) { srcList = all; renderSources(); });
+        startSrcWatch();
+    }
+    function startSrcWatch() {
+        if (!window.Sources) return;
+        Sources.watch(settings.srcAutoSwitch === true, function (number) {
+            // A device was switched on: jump to its HDMI input.
+            srcCfg().last = "HDMI" + number;
+            save(SETTINGS_KEY, settings);
+            Sources.open("HDMI", number, function () {}, function () {});
+        });
     }
     function srcTile(s) {
         var el = document.createElement("div");
-        el.className = "src" + (s.connected ? "" : " off");
-        el.innerHTML =
-            '<div class="sin"><svg viewBox="0 0 24 24" width="40" height="40">' +
-            '<rect x="2" y="6" width="20" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>' +
-            '<path d="M8 21h8M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' +
-            '<span></span></div>';
+        el.className = "src" + (s.connected ? "" : " off") + (srcCfg().last === srcKey(s) ? " last" : "");
+        var glyph = s.type === "TV"
+            ? '<path d="M4 7h16v10H4zM9 20h6M12 17v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+            : '<rect x="2" y="6" width="20" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 21h8M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>';
+        el.innerHTML = '<div class="sin"><svg viewBox="0 0 24 24" width="40" height="40">' + glyph + '</svg><span></span></div>';
         el.querySelector("span").textContent = srcName(s);
         return el;
     }
@@ -1053,15 +1077,19 @@
         var tiles = $("strip").children;
         for (var k = 0; k < tiles.length; k++) tiles[k].className = tiles[k].className.replace(/ (focus|moving)/g, "");
         $("label").textContent = "";
-        setSrcFocus(Math.min(srcFocus, vis.length - 1));
+        var startIdx = 0;                 // open on the last-used source
+        for (var j = 0; j < vis.length; j++) if (srcKey(vis[j]) === srcCfg().last) startIdx = j;
+        setSrcFocus(startIdx);
         return true;
     }
     function leaveSources() { mode = "dock"; setFocus(focus); }
     function openSourceAt(i) {
         var s = visibleSources()[i];
         if (!s) return;
+        srcCfg().last = srcKey(s);
+        save(SETTINGS_KEY, settings);
         toast(t.t("opening", srcName(s)));
-        Sources.open(s.number, function () {}, function () { toast(t.t("notAvailable", srcName(s))); });
+        Sources.open(s.type, s.number, function () {}, function () { toast(t.t("notAvailable", srcName(s))); });
     }
 
     function openSrcMenu() {
