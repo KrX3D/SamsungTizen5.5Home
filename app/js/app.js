@@ -576,6 +576,7 @@
             rows.push({ k: "seconds", type: "toggle", label: t.t(analog ? "showSecondHand" : "showSeconds"), on: s.seconds === true });
         }
         rows.push({ k: "greeting", type: "toggle", label: t.t("showGreeting"), on: s.greeting === true });
+        rows.push({ k: "language", type: "value", label: t.t("language"), val: (t.languages[settings.lang] || t.languages[t.lang] || "English") });
         rows.push({ k: "recentOrder", type: "toggle", label: t.t("recentOrder"), on: settings.recentOrder === true });
 
         rows.push({ k: "hWeather", type: "header", label: t.t("grpWeather") });
@@ -756,6 +757,17 @@
             settings.clockStyle = it.key; save(SETTINGS_KEY, settings); tick(); openSettings();
         }, openSettings, settings.clockStyle || "digital");
     }
+    function chooseLanguage() {
+        var items = [];
+        for (var k in t.languages) items.push({ label: t.languages[k], key: k });
+        openChoice(t.t("language"), items, 3, function (it) {
+            settings.lang = it.key;
+            save(SETTINGS_KEY, settings);
+            // Strings are chosen at load, so re-run the app in the new language.
+            try { location.reload(); } catch (e) { openSettings(); }
+        }, openSettings, settings.lang || t.lang);
+    }
+
     function chooseClockFormat() {
         var items = ["auto", "24", "12"].map(function (k) { return { label: t.t("fmt_" + k), key: k }; });
         openChoice(t.t("clockFormat"), items, 3, function (it) {
@@ -805,6 +817,7 @@
         if (r.k === "loc") openLocation();
         else if (r.k === "clockStyle") chooseClockStyle();
         else if (r.k === "clockFormat") chooseClockFormat();
+        else if (r.k === "language") chooseLanguage();
         else if (r.k === "wallMode") chooseWallMode();
         else if (r.k === "wallPick") chooseWallPhoto();
         else if (r.k === "accent") chooseAccent("accent", t.t("accent"));
