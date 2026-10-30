@@ -53,12 +53,13 @@
     var TILE = 170, TILE_STEP = 198;       // tile width, and width + 2 x 14px margin (updated by applyAppearance)
     // Accent and focus-ring colour swatches, and font stacks, for the Appearance group.
     var SWATCHES = ["#ff5a4d", "#ff9f0a", "#ffd60a", "#34c759", "#0a84ff", "#5e5ce6", "#bf5af2", "#ffffff"];
+    // "default" is the TV's own font; the others are bundled woff2 faces (see
+    // the @font-face block in css/style.css) so they genuinely differ on the TV.
     var FONTS = {
         "default": '"SamsungOne", "Helvetica Neue", "Segoe UI", sans-serif',
-        "modern": '"Helvetica Neue", Arial, sans-serif',
-        "classic": 'Georgia, "Times New Roman", serif',
-        "rounded": '"Trebuchet MS", "Segoe UI", Verdana, sans-serif',
-        "mono": '"Consolas", "Courier New", monospace'
+        "classic": '"Playfair Display", Georgia, "Times New Roman", serif',
+        "rounded": '"Comfortaa", "Trebuchet MS", Verdana, sans-serif',
+        "mono": '"Roboto Mono", "Consolas", "Courier New", monospace'
     };
     var DOCK_INSET = 23;                   // #dock padding-left + border
     var PICK_COLS = 7, PICK_ROW_H = 250;

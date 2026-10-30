@@ -1,5 +1,18 @@
 /* Target: Tizen 5.0 web engine (Chromium 63). No flex `gap`, no `inset`,
    no `backdrop-filter` - all of them are newer than this engine. */
+
+/* Bundled fonts for the "Schriftart" setting. The TV firmware ships only one
+   font family, so the CSS keywords (serif/monospace/Trebuchet...) all fall back
+   to it and look identical - these self-hosted woff2 files (Latin subset) are
+   the only way to actually change the look. woff2 + font-display are supported
+   on Chromium 63. See js/app.js FONTS. */
+@font-face { font-family: "Playfair Display"; font-style: normal; font-weight: 400; font-display: swap; src: url(../fonts/playfair-400.woff2) format("woff2"); }
+@font-face { font-family: "Playfair Display"; font-style: normal; font-weight: 600; font-display: swap; src: url(../fonts/playfair-600.woff2) format("woff2"); }
+@font-face { font-family: "Comfortaa"; font-style: normal; font-weight: 300; font-display: swap; src: url(../fonts/comfortaa-300.woff2) format("woff2"); }
+@font-face { font-family: "Comfortaa"; font-style: normal; font-weight: 600; font-display: swap; src: url(../fonts/comfortaa-600.woff2) format("woff2"); }
+@font-face { font-family: "Roboto Mono"; font-style: normal; font-weight: 300; font-display: swap; src: url(../fonts/robotomono-300.woff2) format("woff2"); }
+@font-face { font-family: "Roboto Mono"; font-style: normal; font-weight: 600; font-display: swap; src: url(../fonts/robotomono-600.woff2) format("woff2"); }
+
 * { margin: 0; padding: 0; box-sizing: border-box; outline: none; }
 
 /* Sized to the real viewport, not a fixed 1920x1080: the TV's viewport is
