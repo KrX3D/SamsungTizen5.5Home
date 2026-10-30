@@ -600,6 +600,11 @@
             if (hasHiddenSources()) rows.push({ k: "srcReset", type: "action", label: t.t("resetSources") });
         }
 
+        var sv = settings.screensaver || {};
+        rows.push({ k: "hBehaviour", type: "header", label: t.t("grpBehaviour") });
+        rows.push({ k: "saver", type: "toggle", label: t.t("screensaver"), on: sv.enabled === true });
+        if (sv.enabled === true) rows.push({ k: "saverMin", type: "value", label: t.t("screensaverIdle"), val: (sv.minutes || 5) + " min" });
+
         var a = appr();
         rows.push({ k: "hLook", type: "header", label: t.t("grpAppearance") });
         rows.push({ k: "accent", type: "value", label: t.t("accent"), swatch: a.accent || "#ff5a4d" });
@@ -696,7 +701,9 @@
         else if (r.k === "units") settings.units = settings.units === "imperial" ? "metric" : "imperial";
         else if (r.k === "credit") s.credit = s.credit === false;
         else if (r.k === "sources") s.sources = s.sources === false;
+        else if (r.k === "saver") (settings.screensaver || (settings.screensaver = {})).enabled = !(settings.screensaver && settings.screensaver.enabled === true);
         save(SETTINGS_KEY, settings);
+        if (r.k === "saver") Screensaver.start(settings);
         applyDisplay();
         tick();
         if (r.k === "units") Weather.refresh(settings);
@@ -732,6 +739,15 @@
         openChoice(t.t("tileShape"), items, 2, function (it) {
             appr().tile = it.key; save(SETTINGS_KEY, settings); applyAppearance(); renderDock(); openSettings();
         }, openSettings, appr().tile || "rounded");
+    }
+    function chooseSaverMin() {
+        var mins = [1, 2, 3, 5, 10, 15, 20, 30];
+        var cur = (settings.screensaver && settings.screensaver.minutes) || 5;
+        var items = mins.map(function (n) { return { label: n + " min", key: n }; });
+        openChoice(t.t("screensaverIdle"), items, 4, function (it) {
+            (settings.screensaver || (settings.screensaver = {})).minutes = it.key;
+            save(SETTINGS_KEY, settings); Screensaver.start(settings); openSettings();
+        }, openSettings, cur);
     }
 
     function chooseClockStyle() {
@@ -796,6 +812,7 @@
         else if (r.k === "font") chooseFont();
         else if (r.k === "tileShape") chooseTileShape();
         else if (r.k === "srcReset") { srcCfg().hidden = {}; save(SETTINGS_KEY, settings); renderSources(); renderSettings(); }
+        else if (r.k === "saverMin") chooseSaverMin();
         else if (r.k === "close") closeOverlay();
     }
 
@@ -1085,6 +1102,7 @@
 
     function onKeyDown(e) {
         var k = e.keyCode;
+        if (window.Screensaver) Screensaver.poke();
         var typing = document.activeElement && document.activeElement.tagName === "INPUT";
         if (typing) {
             if (k === KEY.OK || k === KEY.BACK || k === KEY.IME_DONE || k === KEY.IME_CANCEL) {
@@ -1240,6 +1258,7 @@
         applyWallpaper();
         Weather.start(settings, noLocation);
         loadSources();
+        Screensaver.start(settings);
         var ri = $("renameInput");
         if (ri) ri.onblur = function () { if (mode === "rename") renameDone(); };
         document.addEventListener("keydown", onKeyDown);
