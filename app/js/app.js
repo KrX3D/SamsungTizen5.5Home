@@ -417,6 +417,7 @@
                     (items[i].label ? '<span class="olabel">' + items[i].label + "</span>" : "");
             } else {
                 el.textContent = items[i].label;
+                if (items[i].font) el.style.fontFamily = items[i].font;   // live font preview
             }
             grid.appendChild(el);
         }
@@ -706,7 +707,7 @@
         save(SETTINGS_KEY, settings);
         if (r.k === "saver") Screensaver.start(settings);
         applyDisplay();
-        tick();
+        if (r.k === "seconds") scheduleTick(); else tick();
         if (r.k === "units") Weather.refresh(settings);
         renderSources();
         renderSettings();
@@ -730,7 +731,7 @@
     }
     function chooseFont() {
         var keys = ["default", "modern", "classic", "rounded", "mono"];
-        var items = keys.map(function (k) { return { label: t.t("font_" + k), key: k }; });
+        var items = keys.map(function (k) { return { label: t.t("font_" + k) + " — 12:45  Aa", key: k, font: FONTS[k] }; });
         openChoice(t.t("font"), items, 2, function (it) {
             appr().font = it.key; save(SETTINGS_KEY, settings); applyAppearance(); openSettings();
         }, openSettings, appr().font || "default");
@@ -754,7 +755,7 @@
     function chooseClockStyle() {
         var items = ["digital", "analog"].map(function (k) { return { label: t.t("clock_" + k), key: k }; });
         openChoice(t.t("clockStyle"), items, 2, function (it) {
-            settings.clockStyle = it.key; save(SETTINGS_KEY, settings); tick(); openSettings();
+            settings.clockStyle = it.key; save(SETTINGS_KEY, settings); scheduleTick(); openSettings();
         }, openSettings, settings.clockStyle || "digital");
     }
     function chooseLanguage() {
@@ -849,7 +850,9 @@
         var a = appr(), root = document.documentElement.style;
         ACCENT = a.accent || "#ff5a4d";
         root.setProperty("--accent", ACCENT);
-        root.setProperty("--focus", a.focus || "rgba(255,255,255,0.95)");
+        // The focus ring follows the accent colour unless a focus colour is set,
+        // so picking an accent is visible straight away on the dock.
+        root.setProperty("--focus", a.focus || a.accent || "rgba(255,255,255,0.95)");
         TILE = a.tileSize || 170;
         TILE_STEP = TILE + 28;
         root.setProperty("--tile", TILE + "px");
@@ -914,26 +917,39 @@
             '<circle cx="' + c + '" cy="' + c + '" r="5" fill="currentColor"/></svg>';
     }
 
+    // Cached last-rendered values: only write the DOM when something actually
+    // changed, so the per-second timer does not reflow (and lag input) every tick.
+    var lastClock = "", lastDate = "", lastGreet = "", tickTimer = null;
     function tick() {
         var d = new Date(), h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
         var seconds = show().seconds === true;
-        var timeEl = $("time");
+        var cls, html;
         if ((settings.clockStyle || "digital") === "analog") {
-            timeEl.className = "analog";
-            timeEl.innerHTML = analogClock(h, m, s, seconds);
+            cls = "analog"; html = analogClock(h, m, s, seconds);
         } else {
-            timeEl.className = "";
+            cls = "";
             var head, ap = "";
             if (use24()) head = pad2(h);
             else { head = (h % 12) || 12; ap = '<small>' + (h < 12 ? "am" : "pm") + "</small>"; }
-            timeEl.innerHTML = head + ":" + pad2(m) + (seconds ? '<span class="sec">:' + pad2(s) + "</span>" : "") + ap;
+            html = head + ":" + pad2(m) + (seconds ? '<span class="sec">:' + pad2(s) + "</span>" : "") + ap;
         }
-        $("date").textContent = d.toLocaleDateString(t.locale, { weekday: "long", day: "numeric", month: "long" });
+        if (html !== lastClock) { var te = $("time"); te.className = cls; te.innerHTML = html; lastClock = html; }
+        var ds = d.toLocaleDateString(t.locale, { weekday: "long", day: "numeric", month: "long" });
+        if (ds !== lastDate) { $("date").textContent = ds; lastDate = ds; }
         var g = $("greeting");
         if (g) {
-            if (show().greeting === true) { g.textContent = greetingText(h); g.style.display = ""; }
-            else g.style.display = "none";
+            var gt = show().greeting === true ? greetingText(h) : "\u0000off";
+            if (gt !== lastGreet) {
+                if (gt === "\u0000off") g.style.display = "none"; else { g.textContent = gt; g.style.display = ""; }
+                lastGreet = gt;
+            }
         }
+    }
+    function scheduleTick() {
+        clearInterval(tickTimer);
+        lastClock = "";                                  // force a redraw after a settings change
+        tick();
+        tickTimer = setInterval(tick, show().seconds === true ? 1000 : 10000);
     }
 
     var walls = window.WALLPAPERS || [], wallIdx = 0, layer = 0;
@@ -1153,6 +1169,7 @@
             if (k === KEY.LEFT) setSrcFocus(srcFocus - 1);
             else if (k === KEY.RIGHT) setSrcFocus(srcFocus + 1);
             else if (k === KEY.UP || k === KEY.BACK) leaveSources();
+            else if (k === KEY.RED) { leaveSources(); openSettings(); }
             else handled = false;
         } else if (mode === "srcmenu") {
             if (k === KEY.UP) setSrcMenuFocus(srcMenuFocus - 1);
@@ -1267,7 +1284,7 @@
         loadDock();
         renderDock();
         tick();
-        setInterval(tick, 1000);
+        scheduleTick();
         applyWallpaper();
         Weather.start(settings, noLocation);
         loadSources();
