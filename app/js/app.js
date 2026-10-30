@@ -50,7 +50,16 @@
         dusk:  { light: false, bg: "linear-gradient(160deg, #2a2440 0%, #4a2f54 45%, #9c5a52 100%)" },
         ocean: { light: false, bg: "radial-gradient(130% 120% at 25% 12%, #16384a 0%, #0f2733 55%, #081620 100%)" }
     };
-    var TILE = 170, TILE_STEP = 198;       // tile width, and width + 2 x 14px margin
+    var TILE = 170, TILE_STEP = 198;       // tile width, and width + 2 x 14px margin (updated by applyAppearance)
+    // Accent and focus-ring colour swatches, and font stacks, for the Appearance group.
+    var SWATCHES = ["#ff5a4d", "#ff9f0a", "#ffd60a", "#34c759", "#0a84ff", "#5e5ce6", "#bf5af2", "#ffffff"];
+    var FONTS = {
+        "default": '"SamsungOne", "Helvetica Neue", "Segoe UI", sans-serif',
+        "modern": '"Helvetica Neue", Arial, sans-serif',
+        "classic": 'Georgia, "Times New Roman", serif',
+        "rounded": '"Trebuchet MS", "Segoe UI", Verdana, sans-serif',
+        "mono": '"Consolas", "Courier New", monospace'
+    };
     var DOCK_INSET = 23;                   // #dock padding-left + border
     var PICK_COLS = 7, PICK_ROW_H = 250;
 
@@ -391,6 +400,10 @@
                 lb.textContent = items[i].label;
                 el.appendChild(th);
                 el.appendChild(lb);
+            } else if (items[i].swatch) {
+                el.className = "opt swatchopt";
+                el.innerHTML = '<span class="swatch big" style="background:' + items[i].swatch + '"></span>' +
+                    (items[i].label ? '<span class="olabel">' + items[i].label + "</span>" : "");
             } else {
                 el.textContent = items[i].label;
             }
@@ -574,6 +587,16 @@
             rows.push({ k: "sources", type: "toggle", label: t.t("showSources"), on: s.sources !== false });
             if (hasHiddenSources()) rows.push({ k: "srcReset", type: "action", label: t.t("resetSources") });
         }
+
+        var a = appr();
+        rows.push({ k: "hLook", type: "header", label: t.t("grpAppearance") });
+        rows.push({ k: "accent", type: "value", label: t.t("accent"), swatch: a.accent || "#ff5a4d" });
+        rows.push({ k: "focus", type: "value", label: t.t("focusColor"), swatch: (a.focus && a.focus.charAt(0) === "#") ? a.focus : "#ffffff" });
+        rows.push({ k: "font", type: "value", label: t.t("font"), val: t.t("font_" + (a.font || "default")) });
+        rows.push({ k: "tileShape", type: "value", label: t.t("tileShape"), val: t.t("shape_" + (a.tile || "rounded")) });
+        rows.push({ k: "tileSize", type: "slider", label: t.t("tileSize"), val: a.tileSize || 170, min: 120, max: 210, step: 10, unit: "px" });
+        rows.push({ k: "wallDim", type: "slider", label: t.t("wallDim"), val: a.dim || 0, min: 0, max: 60, step: 5, unit: "%" });
+
         rows.push({ k: "close", type: "action", label: t.t("close") });
         return rows;
     }
@@ -611,6 +634,12 @@
                 inp.type = "text"; inp.value = r.val;
                 inp.onblur = (function (key) { return function () { onInputDone(key, this.value); }; })(r.k);
                 val.appendChild(inp);
+            } else if (r.type === "slider") {
+                val.className = "sval slider";
+                var pct = Math.round((r.val - r.min) / (r.max - r.min) * 100);
+                val.innerHTML = '<span class="snum">' + r.val + (r.unit || "") + '</span><span class="sbar"><i style="width:' + pct + '%"></i></span>';
+            } else if (r.type === "value" && r.swatch) {
+                val.className = "sval"; val.innerHTML = '<span class="swatch" style="background:' + r.swatch + '"></span>  ›';
             } else { val.className = "sval"; if (r.type === "value") val.textContent = r.val + "  ›"; }
             row.appendChild(val);
             list.appendChild(row);
@@ -660,6 +689,36 @@
         if (r.k === "units") Weather.refresh(settings);
         renderSources();
         renderSettings();
+    }
+
+    function adjustSlider(r, dir) {
+        var v = Math.max(r.min, Math.min(r.max, (r.val || 0) + dir * r.step));
+        var a = appr();
+        if (r.k === "tileSize") a.tileSize = v;
+        else if (r.k === "wallDim") a.dim = v;
+        save(SETTINGS_KEY, settings);
+        applyAppearance();
+        if (r.k === "tileSize") renderDock();
+        renderSettings();
+    }
+    function chooseAccent(key, title) {
+        var items = SWATCHES.map(function (c) { return { label: "", key: c, swatch: c }; });
+        openChoice(title, items, 8, function (it) {
+            appr()[key] = it.key; save(SETTINGS_KEY, settings); applyAppearance(); tick(); renderDock(); openSettings();
+        }, openSettings, appr()[key]);
+    }
+    function chooseFont() {
+        var keys = ["default", "modern", "classic", "rounded", "mono"];
+        var items = keys.map(function (k) { return { label: t.t("font_" + k), key: k }; });
+        openChoice(t.t("font"), items, 2, function (it) {
+            appr().font = it.key; save(SETTINGS_KEY, settings); applyAppearance(); openSettings();
+        }, openSettings, appr().font || "default");
+    }
+    function chooseTileShape() {
+        var items = ["rounded", "square"].map(function (k) { return { label: t.t("shape_" + k), key: k }; });
+        openChoice(t.t("tileShape"), items, 2, function (it) {
+            appr().tile = it.key; save(SETTINGS_KEY, settings); applyAppearance(); renderDock(); openSettings();
+        }, openSettings, appr().tile || "rounded");
     }
 
     function chooseClockStyle() {
@@ -719,6 +778,10 @@
         else if (r.k === "clockFormat") chooseClockFormat();
         else if (r.k === "wallMode") chooseWallMode();
         else if (r.k === "wallPick") chooseWallPhoto();
+        else if (r.k === "accent") chooseAccent("accent", t.t("accent"));
+        else if (r.k === "focus") chooseAccent("focus", t.t("focusColor"));
+        else if (r.k === "font") chooseFont();
+        else if (r.k === "tileShape") chooseTileShape();
         else if (r.k === "srcReset") { srcCfg().hidden = {}; save(SETTINGS_KEY, settings); renderSources(); renderSettings(); }
         else if (r.k === "close") closeOverlay();
     }
@@ -737,6 +800,21 @@
     }
 
     function setTheme(light) { document.body.className = light ? "light" : ""; }
+
+    function appr() { return settings.appearance || (settings.appearance = {}); }
+    function applyAppearance() {
+        var a = appr(), root = document.documentElement.style;
+        ACCENT = a.accent || "#ff5a4d";
+        root.setProperty("--accent", ACCENT);
+        root.setProperty("--focus", a.focus || "rgba(255,255,255,0.95)");
+        TILE = a.tileSize || 170;
+        TILE_STEP = TILE + 28;
+        root.setProperty("--tile", TILE + "px");
+        root.setProperty("--radius", (a.tile === "square" ? 10 : Math.round(TILE * 0.18)) + "px");
+        document.body.style.fontFamily = FONTS[a.font] || FONTS["default"];
+        var dim = $("dim");
+        if (dim) dim.style.background = "rgba(0,0,0," + ((a.dim || 0) / 100) + ")";
+    }
 
     function noLocation() { if (show().now !== false) $("now").textContent = t.t("noLocation"); }
 
@@ -1064,6 +1142,7 @@
             if (k === KEY.UP) setSettingFocus(focusableFrom(setFocusIdx - 1, -1));
             else if (k === KEY.DOWN) setSettingFocus(focusableFrom(setFocusIdx + 1, 1));
             else if ((k === KEY.LEFT || k === KEY.RIGHT) && settingRows[setFocusIdx] && settingRows[setFocusIdx].type === "toggle") flip(settingRows[setFocusIdx]);
+            else if ((k === KEY.LEFT || k === KEY.RIGHT) && settingRows[setFocusIdx] && settingRows[setFocusIdx].type === "slider") adjustSlider(settingRows[setFocusIdx], k === KEY.RIGHT ? 1 : -1);
             else if (k === KEY.BACK) closeOverlay();
             else handled = false;
         } else if (mode === "choice") {
@@ -1104,6 +1183,7 @@
         delete sh.weather;
         applyName();
         applyDisplay();
+        applyAppearance();
         loadDock();
         renderDock();
         tick();
