@@ -769,8 +769,11 @@
         openChoice(t.t("font"), items, 2, function (it) {
             appr().font = it.key; save(SETTINGS_KEY, settings); applyAppearance(); openSettings();
         }, openSettings, appr().font || "default", function (it) {
-            return '<div class="pvFont" style="font-family:' + it.font + '">' +
-                '<span class="pvBig">12:45</span><span class="pvTxt">HomeDock · Aa Bb Gg · 0123</span></div>';
+            // Single-quote the style attr: the font stacks contain " (e.g.
+            // "Playfair Display"), which would otherwise close the attribute and
+            // leave every preview on the inherited font.
+            return "<div class='pvFont' style='font-family:" + it.font + "'>" +
+                "<span class='pvBig'>12:45</span><span class='pvTxt'>HomeDock · Aa Bb Gg · 0123</span></div>";
         });
     }
     function chooseTileShape() {
