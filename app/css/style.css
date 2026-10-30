@@ -381,3 +381,16 @@ body.light #hourly { background: rgba(255,255,255,0.62); }
 #svClock { position: absolute; right: 70px; bottom: 56px; font-size: 96px; font-weight: 200; color: #fff; text-shadow: 0 2px 24px rgba(0,0,0,0.7); }
 /* Last-used source marker */
 .src.last:after { content: ""; position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent, #ff5a4d); }
+
+/* ---- Chooser preview panel ---- */
+#choicePreview { display: none; }
+#choicePreview.on { display: block; min-height: 120px; margin: 4px 0 18px; padding: 24px 28px; border-radius: 20px; background: rgba(255,255,255,0.06); }
+.view.withpreview { top: 240px; }
+.pvFont .pvBig { font-size: 60px; font-weight: 300; margin-right: 26px; vertical-align: middle; }
+.pvFont .pvTxt { font-size: 34px; opacity: 0.9; vertical-align: middle; }
+.pvAccent { display: flex; align-items: center; }
+.pvAccent .pvRing { display: inline-block; width: 58px; height: 58px; border-radius: 14px; background: #2a2a2e; margin-right: 34px; }
+.pvAccent .pvSlider { display: inline-block; width: 220px; height: 10px; border-radius: 5px; background: rgba(255,255,255,0.2); overflow: hidden; margin-right: 34px; }
+.pvAccent .pvSlider i { display: block; width: 62%; height: 100%; }
+.pvAccent .pvClock { font-size: 40px; font-weight: 300; }
+.pvShapeTile { width: 90px; height: 90px; background: linear-gradient(145deg,#e23b2e,#9e2a20); box-shadow: 0 8px 22px rgba(0,0,0,0.4); }

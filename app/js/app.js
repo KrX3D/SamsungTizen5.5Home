@@ -400,11 +400,15 @@
 
     // items: [{label, key}]; onBack runs on the Back key; the item whose key
     // equals `selected` starts focused.
-    function openChoice(title, items, cols, onPick, onBack, selected) {
+    function openChoice(title, items, cols, onPick, onBack, selected, preview) {
         $("settings").className = "overlay";
         mode = "choice";
-        choice = { items: items, cols: cols, onPick: onPick, onBack: onBack };
+        choice = { items: items, cols: cols, onPick: onPick, onBack: onBack, preview: preview || null };
         $("choiceTitle").textContent = title;
+        var pv = $("choicePreview");
+        pv.className = preview ? "on" : "";
+        pv.innerHTML = "";
+        $("choiceView").className = preview ? "view withpreview" : "view";
         var grid = $("choiceGrid");
         grid.innerHTML = "";
         var w = Math.floor(1660 / cols) - 16;
@@ -428,7 +432,6 @@
                     (items[i].label ? '<span class="olabel">' + items[i].label + "</span>" : "");
             } else {
                 el.textContent = items[i].label;
-                if (items[i].font) el.style.fontFamily = items[i].font;   // live font preview
             }
             grid.appendChild(el);
         }
@@ -448,6 +451,7 @@
         if (els[choiceFocus]) els[choiceFocus].className = els[choiceFocus].className.replace(" focus", "");
         choiceFocus = i;
         els[i].className += " focus";
+        if (choice.preview) $("choicePreview").innerHTML = choice.preview(choice.items[i]);
         var rowH = els[0].offsetHeight + 14;
         var row = Math.floor(i / choice.cols);
         $("choiceGrid").style.transform = "translateY(" + (-Math.max(0, row - 4) * rowH) + "px)";
@@ -624,7 +628,7 @@
         var a = appr();
         rows.push({ k: "hLook", type: "header", label: t.t("grpAppearance") });
         rows.push({ k: "accent", type: "value", label: t.t("accent"), swatch: a.accent || "#ff5a4d" });
-        rows.push({ k: "focus", type: "value", label: t.t("focusColor"), swatch: (a.focus && a.focus.charAt(0) === "#") ? a.focus : "#ffffff" });
+        rows.push({ k: "focus", type: "value", label: t.t("focusColor"), swatch: (a.focus && a.focus.charAt(0) === "#") ? a.focus : (a.accent || "#ff5a4d") });
         rows.push({ k: "font", type: "value", label: t.t("font"), val: t.t("font_" + (a.font || "default")) });
         rows.push({ k: "tileShape", type: "value", label: t.t("tileShape"), val: t.t("shape_" + (a.tile || "rounded")) });
         rows.push({ k: "tileSize", type: "slider", label: t.t("tileSize"), val: a.tileSize || 170, min: 120, max: 210, step: 10, unit: "px" });
@@ -742,24 +746,39 @@
         if (r.k === "tileSize") renderDock();
         renderSettings();
     }
+    function accentPreview(it) {
+        var c = it.key;
+        return '<div class="pvAccent">' +
+            '<span class="pvRing" style="box-shadow: 0 0 0 4px ' + c + '"></span>' +
+            '<span class="pvSlider"><i style="background:' + c + '"></i></span>' +
+            '<span class="pvClock" style="color:' + c + '">● 12:45</span></div>';
+    }
     function chooseAccent(key, title) {
         var items = SWATCHES.map(function (c) { return { label: "", key: c, swatch: c }; });
         openChoice(title, items, 8, function (it) {
             appr()[key] = it.key; save(SETTINGS_KEY, settings); applyAppearance(); tick(); renderDock(); openSettings();
-        }, openSettings, appr()[key]);
+        }, openSettings, appr()[key], accentPreview);
     }
     function chooseFont() {
-        var keys = ["default", "modern", "classic", "rounded", "mono"];
-        var items = keys.map(function (k) { return { label: t.t("font_" + k) + " — 12:45  Aa", key: k, font: FONTS[k] }; });
+        // Only families that actually render differently on the TV: the system
+        // sans, a serif and a monospace (via the generic families). A preview
+        // below shows each, since many named fonts fall back to the same one.
+        var keys = ["default", "classic", "rounded", "mono"];
+        var items = keys.map(function (k) { return { label: t.t("font_" + k), key: k, font: FONTS[k] }; });
         openChoice(t.t("font"), items, 2, function (it) {
             appr().font = it.key; save(SETTINGS_KEY, settings); applyAppearance(); openSettings();
-        }, openSettings, appr().font || "default");
+        }, openSettings, appr().font || "default", function (it) {
+            return '<div class="pvFont" style="font-family:' + it.font + '">' +
+                '<span class="pvBig">12:45</span><span class="pvTxt">HomeDock · Aa Bb Gg · 0123</span></div>';
+        });
     }
     function chooseTileShape() {
         var items = ["rounded", "square"].map(function (k) { return { label: t.t("shape_" + k), key: k }; });
         openChoice(t.t("tileShape"), items, 2, function (it) {
             appr().tile = it.key; save(SETTINGS_KEY, settings); applyAppearance(); renderDock(); openSettings();
-        }, openSettings, appr().tile || "rounded");
+        }, openSettings, appr().tile || "rounded", function (it) {
+            return '<div class="pvShapeTile" style="border-radius:' + (it.key === "square" ? "8px" : "28px") + '"></div>';
+        });
     }
     function chooseSaverMin() {
         var mins = [1, 2, 3, 5, 10, 15, 20, 30];
