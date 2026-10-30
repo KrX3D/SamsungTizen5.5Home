@@ -1108,7 +1108,10 @@
         }
 
         var handled = true;
-        if (mode === "dock") {
+        if (mode === "whatsnew") {
+            if (k === KEY.BACK) closeWhatsNew();
+            else handled = (k === KEY.OK);     // OK handled on keyup
+        } else if (mode === "dock") {
             if (k === KEY.LEFT) setFocus(focus - 1);
             else if (k === KEY.RIGHT) setFocus(focus + 1);
             else if (k === KEY.DOWN) { if (!enterSources()) handled = false; }
@@ -1169,11 +1172,44 @@
         if (handled) e.preventDefault();
     }
 
+    // ---------- what's new ----------
+    function appVersion() {
+        try { return tizen.application.getCurrentApplication().appInfo.version; }
+        catch (e) { return (window.WHATSNEW && WHATSNEW.v) || "0"; }
+    }
+    function maybeShowWhatsNew() {
+        if (!window.WHATSNEW) return;
+        var seen = null;
+        try { seen = localStorage.getItem("homedock.seenVersion"); } catch (e) {}
+        var ver = appVersion();
+        if (seen === ver) return;
+        if (seen === null) { try { localStorage.setItem("homedock.seenVersion", ver); } catch (e) {} return; }  // first install: no "new"
+        var items = WHATSNEW[t.lang] || WHATSNEW.en || [];
+        if (!items.length) { try { localStorage.setItem("homedock.seenVersion", ver); } catch (e) {} return; }
+        var list = $("wnList");
+        list.innerHTML = "";
+        for (var i = 0; i < items.length; i++) {
+            var d = document.createElement("div");
+            d.className = "wnItem";
+            d.textContent = items[i];
+            list.appendChild(d);
+        }
+        mode = "whatsnew";
+        $("whatsnew").className = "overlay on";
+    }
+    function closeWhatsNew() {
+        try { localStorage.setItem("homedock.seenVersion", appVersion()); } catch (e) {}
+        $("whatsnew").className = "overlay";
+        mode = "dock";
+        setFocus(focus);
+    }
+
     function onKeyUp(e) {
         if (e.keyCode !== KEY.OK || !okHeld) return;
         okHeld = false;
         clearTimeout(okTimer);
         if (okLong) return;                         // the long press already acted
+        if (mode === "whatsnew") { closeWhatsNew(); return; }
         if (mode === "dock") {
             if (focus === dock.length) openPicker();
             else launch(dock[focus]);
@@ -1209,5 +1245,6 @@
         document.addEventListener("keydown", onKeyDown);
         document.addEventListener("keyup", onKeyUp);
         try { tizen.tvinputdevice.registerKey("ColorF0Red"); } catch (x) {}
+        maybeShowWhatsNew();
     });
 })();
