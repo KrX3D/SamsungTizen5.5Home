@@ -117,6 +117,15 @@ html, body {
 #forecast .pp { font-size: 18px; opacity: 0.6; margin-top: 2px; }
 #forecast .foot { display: flex; justify-content: space-between; font-size: 16px; opacity: 0.55; margin-top: 8px; padding: 0 6px; }
 
+/* Clock position: the clock/weather block sits right (default), centred, or
+   left; for left the name and greeting move to the right so nothing overlaps. */
+body[data-clock="center"] #info { right: auto; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); text-align: center; }
+body[data-clock="center"] #hourly, body[data-clock="center"] #forecast { margin-left: auto; margin-right: auto; }
+body[data-clock="left"] #info { right: auto; left: 72px; text-align: left; }
+body[data-clock="left"] #hourly, body[data-clock="left"] #forecast { margin-left: 0; margin-right: auto; }
+body[data-clock="left"] #brand { left: auto; right: 72px; }
+body[data-clock="left"] #greeting { left: auto; right: 76px; text-align: right; }
+
 /* ---- Dock ---- */
 #dockWrap {
     position: absolute; left: 0; right: 0; bottom: 150px;

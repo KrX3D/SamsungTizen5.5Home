@@ -608,6 +608,7 @@
             rows.push({ k: "clockStyle", type: "value", label: t.t("clockStyle"), val: t.t("clock_" + (analog ? "analog" : "digital")) });
             if (!analog) rows.push({ k: "clockFormat", type: "value", label: t.t("clockFormat"), val: t.t("fmt_" + (settings.clockFormat || "auto")) });
             rows.push({ k: "seconds", type: "toggle", label: t.t(analog ? "showSecondHand" : "showSeconds"), on: s.seconds === true });
+            rows.push({ k: "clockPos", type: "value", label: t.t("clockPos"), val: t.t("pos_" + (settings.clockPos || "right")) });
         }
         rows.push({ k: "greeting", type: "toggle", label: t.t("showGreeting"), on: s.greeting === true });
         rows.push({ k: "language", type: "value", label: t.t("language"), val: (t.languages[settings.lang] || t.languages[t.lang] || "English") });
@@ -836,6 +837,12 @@
             settings.clockFormat = it.key; save(SETTINGS_KEY, settings); tick(); openSettings();
         }, openSettings, settings.clockFormat || "auto");
     }
+    function chooseClockPos() {
+        var items = ["right", "center", "left"].map(function (k) { return { label: t.t("pos_" + k), key: k }; });
+        openChoice(t.t("clockPos"), items, 3, function (it) {
+            settings.clockPos = it.key; save(SETTINGS_KEY, settings); applyDisplay(); openSettings();
+        }, openSettings, settings.clockPos || "right");
+    }
 
     function onInputDone(key, value) {
         value = value.replace(/^\s+|\s+$/g, "");
@@ -879,6 +886,7 @@
         if (r.k === "loc") openLocation();
         else if (r.k === "clockStyle") chooseClockStyle();
         else if (r.k === "clockFormat") chooseClockFormat();
+        else if (r.k === "clockPos") chooseClockPos();
         else if (r.k === "language") chooseLanguage();
         else if (r.k === "wallMode") chooseWallMode();
         else if (r.k === "wallPick") chooseWallPhoto();
@@ -902,6 +910,7 @@
         $("hourly").style.display = s.hourly === false ? "none" : "";
         $("forecast").style.display = s.forecast === false ? "none" : "";
         $("credit").style.display = s.credit === false ? "none" : "";
+        document.body.setAttribute("data-clock", settings.clockPos || "right");
     }
 
     function setTheme(light) { document.body.className = light ? "light" : ""; }
