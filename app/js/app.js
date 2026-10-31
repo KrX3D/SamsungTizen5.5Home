@@ -602,15 +602,17 @@
         rows.push({ k: "hGeneral", type: "header", label: t.t("grpGeneral") });
         rows.push({ k: "name", type: "toggle", label: t.t("showName"), on: s.name !== false });
         if (s.name !== false) rows.push({ k: "nameText", type: "text", label: t.t("tvName"), val: settings.name || "" });
+        if (s.name !== false) rows.push({ k: "namePos", type: "value", label: t.t("namePos"), val: t.t("pos_" + posOf("name")) });
         rows.push({ k: "clock", type: "toggle", label: t.t("showClock"), on: s.clock !== false });
         if (s.clock !== false) {
             var analog = settings.clockStyle === "analog";
             rows.push({ k: "clockStyle", type: "value", label: t.t("clockStyle"), val: t.t("clock_" + (analog ? "analog" : "digital")) });
             if (!analog) rows.push({ k: "clockFormat", type: "value", label: t.t("clockFormat"), val: t.t("fmt_" + (settings.clockFormat || "auto")) });
             rows.push({ k: "seconds", type: "toggle", label: t.t(analog ? "showSecondHand" : "showSeconds"), on: s.seconds === true });
-            rows.push({ k: "clockPos", type: "value", label: t.t("clockPos"), val: t.t("pos_" + (settings.clockPos || "right")) });
+            rows.push({ k: "clockPos", type: "value", label: t.t("clockPos"), val: t.t("pos_" + posOf("clock")) });
         }
         rows.push({ k: "greeting", type: "toggle", label: t.t("showGreeting"), on: s.greeting === true });
+        if (s.greeting === true) rows.push({ k: "greetingPos", type: "value", label: t.t("greetingPos"), val: t.t("pos_" + posOf("greeting")) });
         rows.push({ k: "language", type: "value", label: t.t("language"), val: (t.languages[settings.lang] || t.languages[t.lang] || "English") });
         rows.push({ k: "recentOrder", type: "toggle", label: t.t("recentOrder"), on: settings.recentOrder === true });
 
@@ -621,6 +623,7 @@
         rows.push({ k: "forecast", type: "toggle", label: t.t("showForecast"), on: s.forecast !== false });
         rows.push({ k: "units", type: "toggle", label: t.t("useFahrenheit"), on: settings.units === "imperial" });
         if (s.now !== false || s.details !== false || s.hourly !== false || s.forecast !== false) {
+            rows.push({ k: "wxPos", type: "value", label: t.t("wxPos"), val: t.t("pos_" + posOf("weather")) });
             rows.push({ k: "loc", type: "value", label: t.t("location"), val: locLabel() });
             rows.push({ k: "search", type: "text", label: t.t("orSearch"), val: "" });
         }
@@ -839,11 +842,26 @@
             settings.clockFormat = it.key; save(SETTINGS_KEY, settings); tick(); openSettings();
         }, openSettings, settings.clockFormat || "auto");
     }
-    function chooseClockPos() {
-        var items = ["right", "center", "left"].map(function (k) { return { label: t.t("pos_" + k), key: k }; });
-        openChoice(t.t("clockPos"), items, 3, function (it) {
-            settings.clockPos = it.key; save(SETTINGS_KEY, settings); applyDisplay(); openSettings();
-        }, openSettings, settings.clockPos || "right");
+    // Each top element (name / greeting / clock / weather) can sit left, centre
+    // or right; applyLayout() moves it into that column, where items on the same
+    // side stack top-down in this canonical order and so never overlap.
+    var POS_DEF = { name: "left", greeting: "left", clock: "right", weather: "right" };
+    var POS_NODE = { name: "brand", greeting: "greeting", clock: "clockGroup", weather: "wxGroup" };
+    var POS_TITLE = { name: "namePos", greeting: "greetingPos", clock: "clockPos", weather: "wxPos" };
+    function posOf(el) { return (settings.pos && settings.pos[el]) || POS_DEF[el]; }
+    function colFor(p) { return p === "center" ? "colCenter" : p === "left" ? "colLeft" : "colRight"; }
+    function applyLayout() {
+        var order = ["name", "greeting", "clock", "weather"];   // canonical stack order
+        for (var i = 0; i < order.length; i++) {
+            var node = $(POS_NODE[order[i]]), col = $(colFor(posOf(order[i])));
+            if (node && col) col.appendChild(node);
+        }
+    }
+    function choosePos(el) {
+        var items = ["left", "center", "right"].map(function (k) { return { label: t.t("pos_" + k), key: k }; });
+        openChoice(t.t(POS_TITLE[el]), items, 3, function (it) {
+            (settings.pos || (settings.pos = {}))[el] = it.key; save(SETTINGS_KEY, settings); applyLayout(); openSettings();
+        }, openSettings, posOf(el));
     }
 
     function onInputDone(key, value) {
@@ -888,7 +906,10 @@
         if (r.k === "loc") openLocation();
         else if (r.k === "clockStyle") chooseClockStyle();
         else if (r.k === "clockFormat") chooseClockFormat();
-        else if (r.k === "clockPos") chooseClockPos();
+        else if (r.k === "namePos") choosePos("name");
+        else if (r.k === "greetingPos") choosePos("greeting");
+        else if (r.k === "clockPos") choosePos("clock");
+        else if (r.k === "wxPos") choosePos("weather");
         else if (r.k === "language") chooseLanguage();
         else if (r.k === "wallMode") chooseWallMode();
         else if (r.k === "wallPick") chooseWallPhoto();
@@ -912,7 +933,6 @@
         $("hourly").style.display = s.hourly === false ? "none" : "";
         $("forecast").style.display = s.forecast === false ? "none" : "";
         $("credit").style.display = s.credit === false ? "none" : "";
-        document.body.setAttribute("data-clock", settings.clockPos || "right");
     }
 
     function setTheme(light) { document.body.className = light ? "light" : ""; }
@@ -1425,8 +1445,16 @@
         var sh = show();
         if (sh.weather === false) { sh.now = false; sh.details = false; sh.hourly = false; sh.forecast = false; }
         delete sh.weather;
+        // Migrate the old single "clockPos" (moved clock+weather, mirrored name)
+        // to the per-element positions.
+        if (settings.clockPos && !settings.pos) {
+            var cp = settings.clockPos, other = cp === "left" ? "right" : "left";
+            settings.pos = { clock: cp, weather: cp, name: other, greeting: other };
+            delete settings.clockPos; save(SETTINGS_KEY, settings);
+        }
         applyName();
         applyDisplay();
+        applyLayout();
         applyAppearance();
         loadDock();
         renderDock();

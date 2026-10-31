@@ -61,20 +61,29 @@ html, body {
 }
 
 /* ---- Top left ---- */
-#brand {
-    position: absolute; top: 58px; left: 72px;
-    display: flex; align-items: center;
-    font-size: 36px; font-weight: 400;
+/* ---- Top area: three stacking columns ---- */
+/* Each column is anchored to a screen edge/centre; the name, greeting, clock
+   and weather blocks flow inside whichever column they are placed in, so items
+   sharing a side stack vertically and never overlap. */
+.col {
+    position: absolute; top: 48px;
     text-shadow: 0 2px 10px rgba(0,0,0,0.75);
 }
-#brand svg { margin-right: 18px; opacity: 0.9; }
+#colLeft { left: 72px; text-align: left; }
+#colRight { right: 72px; text-align: right; }
+#colCenter { left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); text-align: center; }
+.col > * { margin-top: 20px; }
+.col > *:first-child { margin-top: 0; }
 
-/* ---- Top right: clock + weather ---- */
-#info {
-    position: absolute; top: 40px; right: 72px;
-    text-align: right;
-    text-shadow: 0 2px 10px rgba(0,0,0,0.75);
-}
+#brand { font-size: 36px; font-weight: 400; }
+#brand svg { margin-right: 18px; opacity: 0.9; vertical-align: -12px; }
+#brand #brandName { vertical-align: middle; }
+#greeting { font-size: 34px; font-weight: 300; opacity: 0.9; margin-top: 6px; }
+#clockGroup, #wxGroup { display: block; }
+/* Hourly / forecast align to their column: right by default (margin-left:auto),
+   left or centred when the weather sits on the left or centre column. */
+#colLeft #hourly, #colLeft #forecast { margin-left: 0; margin-right: auto; }
+#colCenter #hourly, #colCenter #forecast { margin-left: auto; margin-right: auto; }
 #time { font-size: 92px; font-weight: 300; line-height: 1; letter-spacing: 1px; }
 #time small { font-size: 40px; margin-left: 8px; }
 #date { font-size: 30px; font-weight: 300; opacity: 0.9; margin-top: 8px; }
@@ -120,15 +129,6 @@ html, body {
 #forecast .t2 .lo { font-size: 21px; opacity: 0.65; }
 #forecast .pp { font-size: 18px; opacity: 0.6; margin-top: 2px; }
 #forecast .foot { display: flex; justify-content: space-between; font-size: 16px; opacity: 0.55; margin-top: 8px; padding: 0 6px; }
-
-/* Clock position: the clock/weather block sits right (default), centred, or
-   left; for left the name and greeting move to the right so nothing overlaps. */
-body[data-clock="center"] #info { right: auto; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); text-align: center; }
-body[data-clock="center"] #hourly, body[data-clock="center"] #forecast { margin-left: auto; margin-right: auto; }
-body[data-clock="left"] #info { right: auto; left: 72px; text-align: left; }
-body[data-clock="left"] #hourly, body[data-clock="left"] #forecast { margin-left: 0; margin-right: auto; }
-body[data-clock="left"] #brand { left: auto; right: 72px; }
-body[data-clock="left"] #greeting { left: auto; right: 76px; text-align: right; }
 
 /* ---- Dock ---- */
 #dockWrap {
@@ -355,7 +355,7 @@ body.light .src.focus { background: rgba(255,255,255,0.8); box-shadow: 0 10px 26
 /* ---- Light wallpaper theme ---- */
 body.light { color: #1a1d22; }
 body.light #shade { display: none; }
-body.light #brand, body.light #info, body.light #label, body.light #credit, body.light #toast { text-shadow: none; }
+body.light .col, body.light #label, body.light #credit, body.light #toast { text-shadow: none; }
 body.light .glass { background: rgba(255,255,255,0.55); border-color: rgba(0,0,0,0.08); color: #1a1d22; }
 body.light #forecast { background: rgba(255,255,255,0.62); }
 body.light #forecast .foot, body.light #now .hl, body.light #date { opacity: 0.6; }
@@ -376,12 +376,6 @@ body.light #hourly { background: rgba(255,255,255,0.62); }
 #time.analog { font-size: 0; line-height: 0; }
 #time.analog svg { display: inline-block; }
 #time .sec { font-size: 42px; opacity: 0.55; margin-left: 2px; }
-#greeting {
-    position: absolute; top: 118px; left: 76px;
-    font-size: 34px; font-weight: 300; opacity: 0.9;
-    text-shadow: 0 2px 14px rgba(0,0,0,0.5);
-}
-
 /* ---- Appearance: dim layer, sliders, swatches ---- */
 #dim { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
 /* Time-of-day tint over the wallpaper; fades in/out like the photo layers. */

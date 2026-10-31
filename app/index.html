@@ -14,19 +14,29 @@
     <div id="shade"></div>
     <div id="dim"></div>
 
-    <div id="brand">
-        <svg viewBox="0 0 24 24" width="44" height="44"><rect x="2" y="5" width="20" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 2l4 3 4-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        <span id="brandName"></span>
+    <!-- Top area: three columns (left / centre / right). Each element (name,
+         greeting, clock, weather) is moved into one of these by applyLayout()
+         per its position setting; blocks in the same column stack top-down in
+         their canonical order. Default placement matches the old layout. -->
+    <div id="colLeft" class="col">
+        <div id="brand">
+            <svg viewBox="0 0 24 24" width="44" height="44"><rect x="2" y="5" width="20" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 2l4 3 4-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <span id="brandName"></span>
+        </div>
+        <div id="greeting"></div>
     </div>
-    <div id="greeting"></div>
-
-    <div id="info">
-        <div id="time"></div>
-        <div id="date"></div>
-        <div id="now"></div>
-        <div id="wxextra"></div>
-        <div id="hourly" class="glass"></div>
-        <div id="forecast" class="glass"></div>
+    <div id="colCenter" class="col"></div>
+    <div id="colRight" class="col">
+        <div id="clockGroup">
+            <div id="time"></div>
+            <div id="date"></div>
+        </div>
+        <div id="wxGroup">
+            <div id="now"></div>
+            <div id="wxextra"></div>
+            <div id="hourly" class="glass"></div>
+            <div id="forecast" class="glass"></div>
+        </div>
     </div>
 
     <div id="dockWrap">
