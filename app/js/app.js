@@ -654,6 +654,7 @@
         rows.push({ k: "tileShape", type: "value", label: t.t("tileShape"), val: t.t("shape_" + (a.tile || "rounded")) });
         rows.push({ k: "tileSize", type: "slider", label: t.t("tileSize"), val: a.tileSize || 170, min: 120, max: 210, step: 10, unit: "px" });
         rows.push({ k: "wallDim", type: "slider", label: t.t("wallDim"), val: a.dim || 0, min: 0, max: 60, step: 5, unit: "%" });
+        rows.push({ k: "panelDark", type: "slider", label: t.t("panelDark"), val: a.panelDark == null ? 65 : a.panelDark, min: 0, max: 100, step: 5, unit: "%" });
 
         rows.push({ k: "close", type: "action", label: t.t("close") });
         return rows;
@@ -764,6 +765,7 @@
         var a = appr();
         if (r.k === "tileSize") a.tileSize = v;
         else if (r.k === "wallDim") a.dim = v;
+        else if (r.k === "panelDark") a.panelDark = v;
         save(SETTINGS_KEY, settings);
         applyAppearance();
         if (r.k === "tileSize") renderDock();
@@ -939,6 +941,9 @@
         document.body.style.fontFamily = FONTS[a.font] || FONTS["default"];
         var dim = $("dim");
         if (dim) dim.style.background = "rgba(0,0,0," + ((a.dim || 0) / 100) + ")";
+        // Panel darkness: opacity of the glass panels (dock, sources, weather).
+        var pd = a.panelDark == null ? 65 : a.panelDark;
+        root.setProperty("--panel", "rgba(16,16,20," + (0.30 + (pd / 100) * 0.62).toFixed(3) + ")");
     }
 
     function noLocation() { if (show().now !== false) $("now").textContent = t.t("noLocation"); }
