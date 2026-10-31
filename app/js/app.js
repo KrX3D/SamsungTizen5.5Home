@@ -629,6 +629,7 @@
         rows.push({ k: "wallMode", type: "value", label: t.t("wallpaper"), val: wallModeLabel() });
         if (wall().mode === "single") rows.push({ k: "wallPick", type: "value", label: t.t("wallpaperPhoto"), val: wallPhotoLabel() });
         if (!SOLIDS[wall().mode]) rows.push({ k: "credit", type: "toggle", label: t.t("showCredit"), on: s.credit !== false });
+        if (!SOLIDS[wall().mode]) rows.push({ k: "wallMotion", type: "toggle", label: t.t("wallMotion"), on: settings.wallMotion === true });
 
         if (srcList.length) {
             rows.push({ k: "hSources", type: "header", label: t.t("grpSources") });
@@ -746,6 +747,7 @@
         else if (r.k === "srcAuto") settings.srcAutoSwitch = !settings.srcAutoSwitch;
         else if (r.k === "homeWatcher") { settings.homeWatcher = !settings.homeWatcher; svcPost("/config", { enabled: settings.homeWatcher === true }); }
         else if (r.k === "accentTod") { appr().accentTod = !appr().accentTod; applyAppearance(); tick(); renderDock(); }
+        else if (r.k === "wallMotion") { settings.wallMotion = !settings.wallMotion; applyWallpaper(); }
         save(SETTINGS_KEY, settings);
         if (r.k === "saver") Screensaver.start(settings);
         if (r.k === "srcAuto") startSrcWatch();
@@ -1043,7 +1045,7 @@
         var img = new Image();
         img.onload = function () {
             next.style.backgroundImage = "url('assets/wallpapers/" + w.file + "')";
-            next.className = "bg show";
+            next.className = "bg show" + (settings.wallMotion ? " motion" : "");
             cur.className = "bg";
             layer = 1 - layer;
             $("credit").textContent = w.credit || "";
