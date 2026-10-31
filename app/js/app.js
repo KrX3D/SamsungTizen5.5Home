@@ -50,6 +50,23 @@
         dusk:  { light: false, bg: "linear-gradient(160deg, #2a2440 0%, #4a2f54 45%, #9c5a52 100%)" },
         ocean: { light: false, bg: "radial-gradient(130% 120% at 25% 12%, #16384a 0%, #0f2733 55%, #081620 100%)" }
     };
+    // Time-of-day look: a colour tint laid over the photo and a matching accent,
+    // per period. Used by wallpaper mode "tod" and the "accent follows time of
+    // day" option, so both read the day/night mood from the same place.
+    var TOD = {
+        morning: { accent: "#ffb703", tint: "linear-gradient(120deg, rgba(255,180,90,0.16), rgba(255,120,80,0.04))" },
+        day:     { accent: "#0a84ff", tint: "linear-gradient(120deg, rgba(120,180,255,0.06), rgba(255,255,255,0.00))" },
+        evening: { accent: "#ff6b4d", tint: "linear-gradient(160deg, rgba(255,120,40,0.20), rgba(120,40,100,0.16))" },
+        night:   { accent: "#6b5cff", tint: "linear-gradient(160deg, rgba(10,22,60,0.46), rgba(0,0,12,0.56))" }
+    };
+    var TOD_ORDER = ["morning", "day", "evening", "night"];
+    function todBucket(h) {
+        if (h < 5) return "night";
+        if (h < 10) return "morning";
+        if (h < 17) return "day";
+        if (h < 21) return "evening";
+        return "night";
+    }
     var TILE = 170, TILE_STEP = 198;       // tile width, and width + 2 x 14px margin (updated by applyAppearance)
     // Accent and focus-ring colour swatches, and font stacks, for the Appearance group.
     var SWATCHES = ["#ff5a4d", "#ff9f0a", "#ffd60a", "#34c759", "#0a84ff", "#5e5ce6", "#bf5af2", "#ffffff"];
@@ -630,6 +647,7 @@
         rows.push({ k: "hLook", type: "header", label: t.t("grpAppearance") });
         rows.push({ k: "accent", type: "value", label: t.t("accent"), swatch: a.accent || "#ff5a4d" });
         rows.push({ k: "focus", type: "value", label: t.t("focusColor"), swatch: (a.focus && a.focus.charAt(0) === "#") ? a.focus : (a.accent || "#ff5a4d") });
+        rows.push({ k: "accentTod", type: "toggle", label: t.t("accentTod"), on: a.accentTod === true });
         rows.push({ k: "font", type: "value", label: t.t("font"), val: t.t("font_" + (a.font || "default")) });
         rows.push({ k: "tileShape", type: "value", label: t.t("tileShape"), val: t.t("shape_" + (a.tile || "rounded")) });
         rows.push({ k: "tileSize", type: "slider", label: t.t("tileSize"), val: a.tileSize || 170, min: 120, max: 210, step: 10, unit: "px" });
@@ -726,6 +744,7 @@
         else if (r.k === "srcHide") settings.srcHideDisconnected = !settings.srcHideDisconnected;
         else if (r.k === "srcAuto") settings.srcAutoSwitch = !settings.srcAutoSwitch;
         else if (r.k === "homeWatcher") { settings.homeWatcher = !settings.homeWatcher; svcPost("/config", { enabled: settings.homeWatcher === true }); }
+        else if (r.k === "accentTod") { appr().accentTod = !appr().accentTod; applyAppearance(); tick(); renderDock(); }
         save(SETTINGS_KEY, settings);
         if (r.k === "saver") Screensaver.start(settings);
         if (r.k === "srcAuto") startSrcWatch();
@@ -835,7 +854,7 @@
 
     function wallModeLabel() { return t.t("wall_" + (wall().mode || "rotate")); }
     function chooseWallMode() {
-        var keys = ["rotate", "single"];
+        var keys = ["rotate", "single", "tod"];
         for (var k in SOLIDS) keys.push(k);
         var items = keys.map(function (m) { return { label: t.t("wall_" + m), key: m }; });
         openChoice(t.t("wallpaper"), items, 2, function (it) {
@@ -888,13 +907,20 @@
     function setTheme(light) { document.body.className = light ? "light" : ""; }
 
     function appr() { return settings.appearance || (settings.appearance = {}); }
+    // The live accent: the time-of-day colour when "accent follows time of day"
+    // is on, otherwise the chosen fixed accent.
+    function currentAccent() {
+        var a = appr();
+        if (a.accentTod) return (TOD[todBucket(new Date().getHours())] || {}).accent || "#ff5a4d";
+        return a.accent || "#ff5a4d";
+    }
     function applyAppearance() {
         var a = appr(), root = document.documentElement.style;
-        ACCENT = a.accent || "#ff5a4d";
+        ACCENT = currentAccent();
         root.setProperty("--accent", ACCENT);
         // The focus ring follows the accent colour unless a focus colour is set,
-        // so picking an accent is visible straight away on the dock.
-        root.setProperty("--focus", a.focus || a.accent || "rgba(255,255,255,0.95)");
+        // so picking an accent (or the time of day) is visible on the dock.
+        root.setProperty("--focus", a.focus || (a.accentTod ? ACCENT : a.accent) || "rgba(255,255,255,0.95)");
         TILE = a.tileSize || 170;
         TILE_STEP = TILE + 28;
         root.setProperty("--tile", TILE + "px");
@@ -961,7 +987,7 @@
 
     // Cached last-rendered values: only write the DOM when something actually
     // changed, so the per-second timer does not reflow (and lag input) every tick.
-    var lastClock = "", lastDate = "", lastGreet = "", tickTimer = null;
+    var lastClock = "", lastDate = "", lastGreet = "", lastBucket = "", tickTimer = null;
     function tick() {
         var d = new Date(), h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
         var seconds = show().seconds === true;
@@ -985,6 +1011,13 @@
                 if (gt === "\u0000off") g.style.display = "none"; else { g.textContent = gt; g.style.display = ""; }
                 lastGreet = gt;
             }
+        }
+        // When the period changes, refresh the time-of-day wallpaper and accent.
+        var bk = todBucket(h);
+        if (bk !== lastBucket) {
+            lastBucket = bk;
+            if (appr().accentTod) applyAppearance();
+            if (wall().mode === "tod") applyTodWall();
         }
     }
     function scheduleTick() {
@@ -1011,6 +1044,40 @@
     var wallTimer = null;
     function wallIndexOf(f) { for (var i = 0; i < walls.length; i++) if (walls[i].file === f) return i; return -1; }
 
+    // Fade a colour tint over the photo for the time of day (null = no tint).
+    function setTodTint(bucket) {
+        var el = $("tod");
+        if (!el) return;
+        var tnt = bucket && TOD[bucket];
+        el.style.background = tnt ? tnt.tint : "";
+        el.style.opacity = tnt ? "1" : "0";
+    }
+    // The photos belonging to the current period: the list split into four
+    // contiguous groups, so each time of day keeps its own set of scenes.
+    function todGroup(bucket) {
+        if (!walls.length) return [0];
+        var gi = TOD_ORDER.indexOf(bucket); if (gi < 0) gi = 0;
+        var per = Math.max(1, Math.floor(walls.length / 4));
+        var start = Math.min(gi * per, walls.length - 1);
+        var end = gi === 3 ? walls.length : Math.min(start + per, walls.length);
+        var g = []; for (var i = start; i < end; i++) g.push(i);
+        return g.length ? g : [0];
+    }
+    var todIdx = 0;
+    function applyTodWall() {
+        var bucket = todBucket(new Date().getHours());
+        lastBucket = bucket;
+        setTodTint(bucket);
+        var g = todGroup(bucket);
+        todIdx = 0;
+        showWall(g[0]);
+        clearInterval(wallTimer);
+        wallTimer = setInterval(function () {
+            todIdx = (todIdx + 1) % g.length;
+            showWall(g[todIdx]);
+        }, WALL_MS);
+    }
+
     function applyWallpaper() {
         var w = wall();
         clearInterval(wallTimer); wallTimer = null;
@@ -1020,6 +1087,7 @@
             a.className = "bg"; b.className = "bg"; a.style.backgroundImage = ""; b.style.backgroundImage = "";
             $("shade").style.display = "none";
             $("credit").textContent = "";
+            setTodTint(null);
             document.body.style.background = sp.bg;
             setTheme(sp.light);
             return;
@@ -1027,7 +1095,9 @@
         $("shade").style.display = "";
         document.body.style.background = "#000";
         setTheme(false);
-        if (!walls.length) return;
+        if (!walls.length) { setTodTint(null); return; }
+        if (w.mode === "tod") { applyTodWall(); return; }
+        setTodTint(null);
         if (w.mode === "single") {
             var i = wallIndexOf(w.file);
             wallIdx = i < 0 ? 0 : i;
