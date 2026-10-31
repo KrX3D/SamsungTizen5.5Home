@@ -1285,19 +1285,21 @@
     }
 
     // ---------- what's new ----------
-    function appVersion() {
-        try { return tizen.application.getCurrentApplication().appInfo.version; }
-        catch (e) { return (window.WHATSNEW && WHATSNEW.v) || "0"; }
-    }
+    // The changelog is gated on WHATSNEW.v - a constant in this bundle - not on
+    // tizen's reported app version. tizen.application can be unready during early
+    // init, and the old code then fell back to a different number, so the stored
+    // and compared versions never matched and the popup returned on every launch.
+    // Mark it seen the moment it is shown, so one successful write ends the nag.
     function maybeShowWhatsNew() {
         if (!window.WHATSNEW) return;
+        var ver = WHATSNEW.v || "0";
         var seen = null;
-        try { seen = localStorage.getItem("homedock.seenVersion"); } catch (e) {}
-        var ver = appVersion();
-        if (seen === ver) return;
-        if (seen === null) { try { localStorage.setItem("homedock.seenVersion", ver); } catch (e) {} return; }  // first install: no "new"
+        try { seen = localStorage.getItem("homedock.seenWhatsNew"); } catch (e) {}
+        if (seen === ver) return;                                             // already saw this changelog
+        try { localStorage.setItem("homedock.seenWhatsNew", ver); } catch (e) {}
+        if (seen === null) return;                                            // fresh install: nothing is "new" yet
         var items = WHATSNEW[t.lang] || WHATSNEW.en || [];
-        if (!items.length) { try { localStorage.setItem("homedock.seenVersion", ver); } catch (e) {} return; }
+        if (!items.length) return;
         var list = $("wnList");
         list.innerHTML = "";
         for (var i = 0; i < items.length; i++) {
@@ -1310,7 +1312,7 @@
         $("whatsnew").className = "overlay on";
     }
     function closeWhatsNew() {
-        try { localStorage.setItem("homedock.seenVersion", appVersion()); } catch (e) {}
+        try { localStorage.setItem("homedock.seenWhatsNew", (window.WHATSNEW && WHATSNEW.v) || "0"); } catch (e) {}
         $("whatsnew").className = "overlay";
         mode = "dock";
         setFocus(focus);
