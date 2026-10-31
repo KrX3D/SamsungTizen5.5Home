@@ -37,6 +37,7 @@
             shape_square: "Square",
             tileSize: "Tile size",
             wallDim: "Wallpaper dim",
+            panelDark: "Panel darkness",
             whatsNew: "What’s new",
             gotIt: "Got it",
             grpBehaviour: "Behaviour",
@@ -155,6 +156,7 @@
             shape_square: "Eckig",
             tileSize: "Kachelgröße",
             wallDim: "Hintergrund abdunkeln",
+            panelDark: "Flächen abdunkeln",
             whatsNew: "Neu in dieser Version",
             gotIt: "Alles klar",
             grpBehaviour: "Verhalten",
@@ -257,7 +259,7 @@
             wallpaper: "Fond d'écran", wallpaperPhoto: "Choisir une photo", wall_rotate: "Photos qui changent", wall_single: "Photo unique", wall_tod: "Heure du jour", wallMotion: "Mouvement doux", wall_light: "Clair uni", wall_mist: "Brume unie", wall_sand: "Sable uni", wall_dark: "Sombre uni", wall_dusk: "Crépuscule uni", wall_ocean: "Océan uni", showCredit: "Afficher le crédit photo",
             showSources: "Afficher la rangée des sources", resetSources: "Afficher les sources masquées",
             accent: "Couleur d'accent", focusColor: "Couleur de sélection", accentTod: "L'accent suit l'heure du jour", font: "Police", font_default: "Par défaut", font_modern: "Moderne", font_classic: "Classique", font_rounded: "Arrondie", font_mono: "Monospace",
-            tileShape: "Forme des tuiles", shape_rounded: "Arrondies", shape_square: "Carrées", tileSize: "Taille des tuiles", wallDim: "Assombrir le fond",
+            tileShape: "Forme des tuiles", shape_rounded: "Arrondies", shape_square: "Carrées", tileSize: "Taille des tuiles", wallDim: "Assombrir le fond", panelDark: "Assombrir les panneaux",
             whatsNew: "Nouveautés", gotIt: "Compris",
             opening: "Ouverture de {0}…", notAvailable: "{0} n'est pas disponible", added: "{0} ajouté", removed: "{0} retiré",
             wc: {
@@ -286,7 +288,7 @@
             wallpaper: "Fondo", wallpaperPhoto: "Elegir foto", wall_rotate: "Fotos que cambian", wall_single: "Foto única", wall_tod: "Hora del día", wallMotion: "Movimiento suave", wall_light: "Claro liso", wall_mist: "Niebla lisa", wall_sand: "Arena lisa", wall_dark: "Oscuro liso", wall_dusk: "Ocaso liso", wall_ocean: "Océano liso", showCredit: "Mostrar crédito de foto",
             showSources: "Mostrar fila de fuentes", resetSources: "Mostrar fuentes ocultas",
             accent: "Color de acento", focusColor: "Color de selección", accentTod: "El acento sigue la hora del día", font: "Fuente", font_default: "Predeterminada", font_modern: "Moderna", font_classic: "Clásica", font_rounded: "Redondeada", font_mono: "Monoespaciada",
-            tileShape: "Forma de iconos", shape_rounded: "Redondeados", shape_square: "Cuadrados", tileSize: "Tamaño de iconos", wallDim: "Oscurecer fondo",
+            tileShape: "Forma de iconos", shape_rounded: "Redondeados", shape_square: "Cuadrados", tileSize: "Tamaño de iconos", wallDim: "Oscurecer fondo", panelDark: "Oscurecer paneles",
             whatsNew: "Novedades", gotIt: "Entendido",
             opening: "Abriendo {0}…", notAvailable: "{0} no está disponible", added: "{0} añadido", removed: "{0} quitado",
             wc: {
