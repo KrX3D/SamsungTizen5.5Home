@@ -45,6 +45,10 @@ html, body {
     transition: opacity 2.5s ease-in-out;
 }
 .bg.show { opacity: 1; }
+/* Optional gentle "Ken Burns" drift: a slow zoom/pan on the shown photo. The
+   extra zoom leaves room for the pan so no edge shows. Restarts per photo. */
+.bg.motion { animation: kenburns 45s ease-in-out infinite alternate; }
+@keyframes kenburns { from { transform: scale(1.05); } to { transform: scale(1.14) translate(-2%, -1.2%); } }
 
 #shade {
     position: fixed;
