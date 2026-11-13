@@ -1,0 +1,114 @@
+# -----------------------------------------------------------------------------
+# Weekly check of the author signing certificate (secret TIZEN_AUTHOR_KEY)
+#
+# Fails (GitHub then mails you) when
+#   - the secret or its password is missing, or the .p12 no longer opens,
+#   - the certificate inside is not the pinned homedock_author one
+#     (a different author makes the TV reject every update),
+#   - the private key does not belong to that certificate,
+#   - the certificate expires within WARN_DAYS.
+#
+# The expiry failure can be acknowledged without lowering WARN_DAYS: set the
+# repository variable CERT_EXPIRY_ACK to the expiry date shown in the run
+# (YYYY-MM-DD). That date then only warns. A new certificate has a new date,
+# so the acknowledgement does not carry over.
+#
+# Nothing is built or released here. See docs/SIGNING.md for the backup list.
+# Reusable in the other Tizen repos: same secret names, change AUTHOR_SHA256.
+# -----------------------------------------------------------------------------
+
+name: Check signing certificate
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'   # Mondays 06:17 UTC
+  workflow_dispatch:
+  pull_request:
+    paths: ['.github/workflows/cert-expiry.yml']
+
+permissions:
+  contents: read
+
+env:
+  # SHA-256 of the author certificate in released HomeDock.wgt files
+  # (author-signature.xml, CN=KrX Home). Must never change.
+  AUTHOR_SHA256: 8F:3B:AD:BE:86:45:71:47:73:DA:D7:3D:C7:32:B5:6F:55:80:80:33:B3:36:29:68:E9:D6:0A:38:B0:3F:F5:67
+  WARN_DAYS: 120
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check author certificate
+        env:
+          AUTHOR_P12_B64: ${{ secrets.TIZEN_AUTHOR_KEY }}
+          AUTHOR_P12_PASSWORD: ${{ secrets.TIZEN_AUTHOR_KEY_PW }}
+          EXPIRY_ACK: ${{ vars.CERT_EXPIRY_ACK }}
+        run: |
+          set -euo pipefail
+          umask 077
+          W="$RUNNER_TEMP/cert"; mkdir -p "$W"
+          trap 'rm -rf "$W"' EXIT
+          sum() { echo "$1" >> "$GITHUB_STEP_SUMMARY"; }
+
+          if [ -z "${AUTHOR_P12_B64:-}" ] || [ -z "${AUTHOR_P12_PASSWORD:-}" ]; then
+            echo "::error::Secrets TIZEN_AUTHOR_KEY / TIZEN_AUTHOR_KEY_PW are missing. Restore them from the backup (docs/SIGNING.md)."
+            exit 1
+          fi
+          echo "$AUTHOR_P12_B64" | base64 -d > "$W/author.p12" \
+            || { echo "::error::TIZEN_AUTHOR_KEY is not valid base64."; exit 1; }
+
+          # Same fallback as the build: try the legacy provider first.
+          openssl pkcs12 -legacy -in "$W/author.p12" -nodes -passin env:AUTHOR_P12_PASSWORD -out "$W/all.pem" 2>/dev/null \
+            || openssl pkcs12 -in "$W/author.p12" -nodes -passin env:AUTHOR_P12_PASSWORD -out "$W/all.pem" 2>/dev/null \
+            || { echo "::error::The .p12 does not open with TIZEN_AUTHOR_KEY_PW (wrong password or damaged file)."; exit 1; }
+
+          openssl pkcs12 -legacy -in "$W/author.p12" -nokeys -clcerts -passin env:AUTHOR_P12_PASSWORD -out "$W/cert.pem" 2>/dev/null \
+            || openssl pkcs12 -in "$W/author.p12" -nokeys -clcerts -passin env:AUTHOR_P12_PASSWORD -out "$W/cert.pem"
+          openssl pkey -in "$W/all.pem" -pubout -out "$W/key.pub" 2>/dev/null \
+            || { echo "::error::The .p12 holds no private key."; exit 1; }
+
+          SUBJECT=$(openssl x509 -in "$W/cert.pem" -noout -subject | sed 's/^subject=//')
+          FP=$(openssl x509 -in "$W/cert.pem" -noout -fingerprint -sha256 | sed 's/.*=//')
+          END=$(openssl x509 -in "$W/cert.pem" -noout -enddate | sed 's/^notAfter=//')
+          END_DAY=$(date -u -d "$END" +%Y-%m-%d)
+          DAYS=$(( ( $(date -u -d "$END" +%s) - $(date -u +%s) ) / 86400 ))
+
+          sum "### Author certificate"
+          sum ""
+          sum "| | |"
+          sum "|---|---|"
+          sum "| Subject | \`${SUBJECT}\` |"
+          sum "| SHA-256 | \`${FP}\` |"
+          sum "| Expires | ${END_DAY} (${DAYS} days) |"
+          echo "Subject: ${SUBJECT}"
+          echo "SHA-256: ${FP}"
+          echo "Expires: ${END_DAY} (${DAYS} days left)"
+
+          FAIL=0
+          if [ "$FP" != "$AUTHOR_SHA256" ]; then
+            echo "::error::TIZEN_AUTHOR_KEY holds a different certificate than the one HomeDock was released with. Updates signed with it will be rejected by the TV."
+            FAIL=1
+          fi
+          if ! cmp -s "$W/key.pub" <(openssl x509 -in "$W/cert.pem" -noout -pubkey); then
+            echo "::error::The private key in the .p12 does not match its certificate."
+            FAIL=1
+          fi
+          if [ "$DAYS" -lt 0 ]; then
+            MSG="The author certificate expired on ${END_DAY}."
+          elif [ "$DAYS" -lt "$WARN_DAYS" ]; then
+            MSG="The author certificate expires on ${END_DAY}, in ${DAYS} days."
+          else
+            MSG=""
+          fi
+          if [ -n "$MSG" ]; then
+            if [ "${EXPIRY_ACK:-}" = "$END_DAY" ]; then
+              echo "::warning::${MSG} Acknowledged via CERT_EXPIRY_ACK."
+            else
+              echo "::error::${MSG} See docs/SIGNING.md. To acknowledge, set the repository variable CERT_EXPIRY_ACK=${END_DAY}."
+              FAIL=1
+            fi
+            sum ""
+            sum "**${MSG}**"
+          fi
+          exit "$FAIL"
