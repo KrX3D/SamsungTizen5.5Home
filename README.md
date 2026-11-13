@@ -58,6 +58,7 @@ Every push to `main` that changes `app/` builds, signs and releases `HomeDock.wg
 - `TIZEN_AUTHOR_KEY_PW`: its password
 
 Always sign with the same author certificate. The TV rejects an update signed by a different author.
+A weekly workflow checks the certificate's expiry and fingerprint; backup steps are in [docs/SIGNING.md](docs/SIGNING.md).
 
 Wallpapers are refreshed with `python scripts/fetch-wallpapers.py app/assets/wallpapers app/js/wallpapers.js`.
 
