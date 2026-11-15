@@ -33,6 +33,9 @@ concurrency:
 
 env:
   TIZEN_STUDIO_VER: 5.6
+  # Change both together with TIZEN_STUDIO_VER (sha256 of the web-cli ubuntu-64 .bin).
+  TIZEN_CLI_TAG: tizen-studio-cli-5.6
+  TIZEN_CLI_SHA256: 89c84fbc474dcfb02af193bcc763e2e7bf3259bf34cbf6b7f44ec2da024db7df
 
 jobs:
   build:
@@ -62,20 +65,49 @@ jobs:
           path: tizen-installer
           key: tizen-installer-${{ env.TIZEN_STUDIO_VER }}-ubuntu-64
 
-      - name: Download Tizen Studio CLI
+      # The Actions cache is dropped after 7 days without use, so the installer
+      # is also kept as an asset of the prerelease "${TIZEN_CLI_TAG}" in this
+      # repo. Order: cache, then that mirror, then download.tizen.org (which
+      # then seeds the mirror). Prereleases are invisible to /releases/latest
+      # and the asset is no .wgt, so TizenBrew Installer ignores it.
+      - name: Get Tizen Studio CLI (mirror, then download.tizen.org)
         if: steps.tizen_cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          URL="https://download.tizen.org/sdk/Installer/tizen-studio_${TIZEN_STUDIO_VER}/web-cli_Tizen_Studio_${TIZEN_STUDIO_VER}_ubuntu-64.bin"
+          FILE="web-cli_Tizen_Studio_${TIZEN_STUDIO_VER}_ubuntu-64.bin"
+          verify() { echo "${TIZEN_CLI_SHA256}  tizen-installer" | sha256sum -c --quiet; }
+
+          if gh release download "$TIZEN_CLI_TAG" -p "$FILE" -O tizen-installer --clobber 2>/dev/null && verify; then
+            echo "Got the installer from release ${TIZEN_CLI_TAG}."
+            exit 0
+          fi
+          echo "::warning::No usable copy in release ${TIZEN_CLI_TAG}; downloading from download.tizen.org."
+
+          URL="https://download.tizen.org/sdk/Installer/tizen-studio_${TIZEN_STUDIO_VER}/${FILE}"
+          OK=
           for i in 1 2 3 4 5; do
             CODE=$(curl -sSL -o tizen-installer -w '%{http_code}' "$URL" || echo 000)
-            if [ "$CODE" = "200" ] && [ -s tizen-installer ]; then exit 0; fi
+            if [ "$CODE" = "200" ] && verify; then OK=1; break; fi
             echo "attempt ${i}: HTTP ${CODE}"
             if [ "$CODE" = "404" ]; then break; fi
             sleep 15
           done
-          echo "::error::Could not download the Tizen Studio CLI from ${URL} (HTTP ${CODE}). This is on Tizen's side; re-run when download.tizen.org serves it again."
-          exit 1
+          if [ -z "$OK" ]; then
+            echo "::error::Could not get the Tizen Studio CLI from release ${TIZEN_CLI_TAG} or ${URL} (HTTP ${CODE}). This is on Tizen's side; re-run when download.tizen.org serves it again."
+            exit 1
+          fi
+
+          # Seed the mirror so the next build does not need Tizen's server.
+          if ! gh release view "$TIZEN_CLI_TAG" >/dev/null 2>&1; then
+            gh release create "$TIZEN_CLI_TAG" --prerelease --target "$GITHUB_SHA" \
+              --title "Tizen Studio ${TIZEN_STUDIO_VER} CLI (CI mirror)" \
+              --notes "Copy of ${URL} used by the build workflow. Not a HomeDock release."
+          fi
+          cp tizen-installer "$RUNNER_TEMP/$FILE"
+          gh release upload "$TIZEN_CLI_TAG" "$RUNNER_TEMP/$FILE" --clobber \
+            || echo "::warning::Could not upload the installer to release ${TIZEN_CLI_TAG}."
 
       - name: Install Tizen Studio CLI
         run: |
